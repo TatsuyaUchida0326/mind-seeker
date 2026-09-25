@@ -1,21 +1,30 @@
-/* 画面全体を覆うラッパー */
+/* 画面全体を覆うラッパー。地図全面＋自前スクロール領域にする（スマホと同じ形。地図の向きに応じて
+   はみ出した方向へトラックパッド・ホイール・キーボードでスクロールできる） */
 .map-wrapper {
-  height: 109vh;
+  position: fixed;
+  inset: 0;
+  /* 端の街も中央へ寄せられるよう、地図の外側にスクロール余白を確保する */
+  padding: 50dvh 50vw;
   background-color: #000;
-  display: flex;
-  justify-content: flex-end; /* 右寄せに変更 */
-  padding-left: 300px;
-  position: relative;
-  overflow: hidden;
+  display: flex; /* svgがinline要素として余分な隙間を作らないよう、スマホ配置と同じくflexにする */
+  overflow: auto;
+  /* スクロールバーは地図の上に出ると見栄えが悪いので消す（スクロール自体はできる） */
+  scrollbar-width: none;
+}
+.map-wrapper::-webkit-scrollbar {
+  display: none;
 }
 
-/* SVG地図全体 */
+/* SVG地図全体。画面を覆うサイズにし、16:9と異なる画面比率でははみ出した方向にスクロールする */
+.map-wrapper { cursor: grab; }
+.map-wrapper.is-dragging { cursor: grabbing; user-select: none; }
+
 .map-svg {
-  height: 100vh;
-  width: 100%;
+  width: max(100vw, calc(100dvh * 16 / 9));
+  height: max(100dvh, calc(100vw * 9 / 16));
+  flex: none;
   max-width: none;
-  object-fit: cover;
-  transform: scale(1.13) translateX(1.6%); /* scaleとtranslateXを組み合わせる */
+  --town-appear-duration: 800ms;
 }
 
 /* フルスクリーン動画表示用 */
@@ -24,7 +33,7 @@
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   z-index: 9999;
   background-color: #000;
   display: flex;
@@ -62,7 +71,7 @@
   left: 50%;
   transform: translate(-52%, -45%);
   color: #3b1e00;
-  font-size: 14px;
+  font-size: var(--label-font-size, 14px);
   font-weight: bold;
   text-align: center;
   text-shadow: 1px 1px 2px #fff8dc;
@@ -93,12 +102,8 @@
 
 /* ステータスバーとレーダーチャートのコンテナ */
 .stats-container {
-  position: absolute;
-  bottom: 70px;
-  left: 10px;
   display: flex;
   gap: 5px;
-  z-index: 1000;
 }
 
 /* ステータスバー用のコンテナ */
@@ -230,17 +235,14 @@
   left: 2.6%;
 }
 
-/* 進捗表示エリアのスタイル */
+/* 進捗表示エリアのスタイル。PCは地図全面表示の左上に小さなカードとして重ねる */
 .progress-container {
-  position: absolute;
-  top: 20px;
-  left: 10px;
-  width: 298px;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: 260px;
+  box-sizing: border-box;
   padding: 12px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid #666;
-  border-radius: 4px;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
   z-index: 1000;
 }
 
@@ -296,14 +298,6 @@
   box-shadow: 0 0 5px rgba(79, 195, 247, 0.5);
 }
 
-.exp-text {
-  color: #4fc3f7;
-  font-size: 10px;
-  min-width: 36px;
-  text-align: right;
-  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
-}
-
 /* 光の動きを表現する疑似要素のアニメーション */
 @keyframes lightMove {
   0% {
@@ -330,10 +324,77 @@
 }
 
 /* RPGスタイルのスキップボタン共通デザイン */
-.rpg-skip-button {
+/* オープニング動画。PC は画面いっぱいに切り抜き、縦向きスマホは横長の動画が大きく欠けないよう全体を収める */
+.opening-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  object-fit: cover;
+  background-color: #000;
+  z-index: 1000;
+}
+.opening-video-stage,
+.opening-title-stage {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: #000;
+}
+.opening-video-stage { display: flex; justify-content: center; align-items: center; }
+.opening-title-stage { text-align: center; }
+.opening-background,
+.opening-title-shade {
   position: absolute;
-  bottom: 20px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.opening-background { background-size: cover; background-position: center; background-repeat: no-repeat; }
+.opening-title-shade {
+  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.7));
+  z-index: 1;
+}
+.opening-title-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.opening-title-content .title-text {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(2rem, 11vw, 5rem);
+  margin-bottom: 3rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  position: relative;
+}
+.opening-title-content .start-button {
+  padding: 15px 30px;
+  font-size: 1.4rem;
+  background-color: #4a148c;
+  color: #fff;
+  border: 0;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+@media (orientation: portrait) and (max-width: 600px) {
+  .opening-video { object-fit: contain; }
+}
+
+/* スマホのツールバーやホームバーに隠れないよう、画面に対して固定し下端の安全領域を空ける */
+.rpg-skip-button {
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom));
   right: 20px;
+  min-height: 44px;
   background: linear-gradient(to bottom, #2c1810 0%, #1a0f0a 100%);
   color: #d4af37;
   border: 2px solid #8b734b;
@@ -346,7 +407,7 @@
   font-size: 0.9rem;
   letter-spacing: 0.05em;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-  box-shadow: 
+  box-shadow:
     0 0 0 1px rgba(139, 115, 75, 0.4),
     0 2px 4px rgba(0, 0, 0, 0.4);
   display: flex;
@@ -359,14 +420,14 @@
   border-color: #9c835c;
   color: #ffd700;
   transform: translateY(-1px);
-  box-shadow: 
+  box-shadow:
     0 0 0 1px rgba(139, 115, 75, 0.6),
     0 3px 6px rgba(0, 0, 0, 0.5);
 }
 
 .rpg-skip-button:active {
   transform: translateY(1px);
-  box-shadow: 
+  box-shadow:
     0 0 0 1px rgba(139, 115, 75, 0.4),
     0 1px 2px rgba(0, 0, 0, 0.4);
 }
@@ -374,14 +435,14 @@
 @keyframes titleGlow {
   0%, 100% {
     filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.3));
-    text-shadow: 
+    text-shadow:
       0 0 5px rgba(255, 215, 0, 0.3),
       0 0 10px rgba(255, 215, 0, 0.2),
       2px 2px 4px rgba(184, 134, 11, 0.5);
   }
   50% {
     filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.5));
-    text-shadow: 
+    text-shadow:
       0 0 10px rgba(255, 215, 0, 0.5),
       0 0 20px rgba(255, 215, 0, 0.4),
       0 0 30px rgba(255, 215, 0, 0.3),
@@ -413,7 +474,7 @@
   -webkit-text-fill-color: transparent;
   animation: shineEffect 3s linear infinite;
   position: relative;
-  text-shadow: 
+  text-shadow:
     0 0 10px rgba(255, 215, 0, 0.4),
     2px 2px 4px rgba(184, 134, 11, 0.6);
 }
@@ -430,16 +491,78 @@
 
 /* インベントリコンテナ */
 .inventory-container {
-  position: absolute;
-  top: 120px;
-  left: 10px;
-  width: 298px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid #666;
-  border-radius: 4px;
   padding: 15px 12px;  /* 33pxから15pxに変更して余白を調整 */
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+/* アイテム・能力値は常に引き出し表示（PC・スマホ共通）。PCでは地図の左側、進捗カードの下に中身の高さで展開する。
+   中身が多い画面でも開閉ボタン（下端から80px）に被らないよう最大高さを持たせ、超えた分はスクロール */
+.inventory-container.hud-drawer,
+.stats-container.hud-drawer {
+  position: fixed;
+  left: 16px;
+  top: 110px;
+  bottom: auto;
+  max-height: calc(100dvh - 190px);
+  box-sizing: border-box;
+  padding-top: 50px; /* 右上の閉じるボタン（上4px＋高さ44px）の分 */
+  overflow: auto;
   z-index: 1000;
+}
+.inventory-container.hud-drawer { width: 320px; }
+.stats-container.hud-drawer { width: 360px; flex-direction: row; align-items: flex-start; gap: 10px; padding: 50px 12px 15px; }
+
+/* 引き出し・進捗カード・教材パネルに共通の半透明パネルスタイル。地図が薄く透ける「開くとUIが展開する」見た目にする。
+   スマホ用@media（後方に記述）が背景を不透明に近い色で上書きする */
+.progress-container,
+.inventory-container.hud-drawer,
+.stats-container.hud-drawer,
+.course-panel {
+  background: rgba(26, 15, 10, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* 開閉ボタン。PCは左下、スマホは@media側で位置を上書きする */
+.hud-toggle-buttons {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+}
+.hud-toggle-button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+  background: #1a0f0aee;
+  color: #fff8dc;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.hud-toggle-button[aria-expanded="true"] {
+  background: #2c1810;
+  color: #ffd700;
+}
+.hud-drawer-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 44px; /* 共通のbuttonの余白で大きくなりすぎないよう、押しやすい44px四方に固定 */
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff8dc;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .inventory-title {
@@ -473,14 +596,14 @@
 .inventory-slot.obtained {
   background: rgba(102, 93, 115, 0.7);  /* 取得済みは少し明るく */
   border-color: #a18c6c;  /* ボーダーも明るく */
-  box-shadow: 
+  box-shadow:
     inset 0 0 6px rgba(255, 215, 0, 0.2),
     inset 0 0 2px rgba(255, 255, 255, 0.2);  /* 金色と白の光沢を組み合わせ */
 }
 
 .inventory-slot:hover.obtained {
   transform: scale(1.1);
-  box-shadow: 
+  box-shadow:
     inset 0 0 8px rgba(255, 215, 0, 0.4),
     inset 0 0 4px rgba(255, 255, 255, 0.3),
     0 0 12px rgba(255, 215, 0, 0.2);

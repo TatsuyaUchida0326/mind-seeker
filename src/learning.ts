@@ -1,4 +1,5 @@
 import { stages } from './stages';
+import { worldLessonsByStage } from './lessons/worldLessons';
 
 export const progressStorageKey = 'mind-seeker-learning-progress-v1';
 
@@ -14,38 +15,7 @@ export interface LearningUnit {
   body: string;
 }
 
-function createSampleLearningUnits(stageId: string, stageName: string): LearningUnit[] {
-  return [
-    {
-      id: `${stageId}-foundation`,
-      title: `${stageName}で学ぶこと`,
-      summary: 'この街の学習テーマを知る',
-      body: 'ここに、この街で身につける自己理解や行動の教材を追加します。この街専用の見出し・要約・本文に差し替えてください。',
-    },
-    {
-      id: `${stageId}-practice`,
-      title: '考え方を日常で試す',
-      summary: '学んだことを小さな行動にする',
-      body: 'ここにワーク、振り返りの問い、具体的な実践例などを追加します。教材は配列に順番に追加すると、次の教材が段階的に現れます。',
-    },
-    {
-      id: `${stageId}-reflection`,
-      title: '振り返りと次の一歩',
-      summary: '学びを自分の言葉にする',
-      body: 'ここに振り返り教材を追加します。街のすべての教材を完了すると修了証が発行され、次の街が解放されます。',
-    },
-  ];
-}
-
-// 実教材は街IDをキーにここへ追加する。未定義の街は差し替え用サンプルを表示する。
-const learningUnitOverridesByStage: Partial<Record<string, LearningUnit[]>> = {};
-
-export const learningUnitsByStage: Record<string, LearningUnit[]> = Object.fromEntries(
-  stages.map(stage => [
-    stage.id,
-    learningUnitOverridesByStage[stage.id] ?? createSampleLearningUnits(stage.id, stage.name),
-  ]),
-);
+export const learningUnitsByStage: Record<string, LearningUnit[]> = worldLessonsByStage;
 
 export const initialLearningProgress: LearningProgress = { completedStageIds: [], completedLessonIds: [] };
 

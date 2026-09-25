@@ -20,11 +20,13 @@ function Root() {
   };
 
   return (
-    <Routes>
-      <Route path="/opening" element={<Opening onFinish={() => window.location.href = '/'} />} />
-      <Route path="/" element={<App progress={progress} stageWithGateOpening={stageWithGateOpening} onShowGateOpening={setStageWithGateOpening} />} />
-      <Route path="/lesson/:stageId" element={<LessonPage progress={progress} onCompleteLesson={completeLesson} onShowGateOpening={setStageWithGateOpening} />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/opening" element={<Opening onFinish={() => window.location.href = import.meta.env.BASE_URL} />} />
+        <Route path="/" element={<App progress={progress} stageWithGateOpening={stageWithGateOpening} onShowGateOpening={setStageWithGateOpening} />} />
+        <Route path="/lesson/:stageId" element={<LessonPage progress={progress} onCompleteLesson={completeLesson} onShowGateOpening={setStageWithGateOpening} />} />
+      </Routes>
+    </>
   );
 }
 

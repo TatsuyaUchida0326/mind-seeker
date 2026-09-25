@@ -94,96 +94,31 @@ function Opening({ onFinish }: OpeningProps) {
   return (
     <div className="video-fullscreen">
       {isStarted ? (
-        <div
-          style={{
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: '#000',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
+        <div className="opening-video-stage">
+          {/* playsInline が無いと iPhone は OS の全画面プレイヤーで再生し、スキップボタンが見えなくなる */}
           <video
             ref={videoRef}
             src={openingVideo}
             controls={false}
+            playsInline
             onEnded={handleFinish}
-            style={{
-              width: '100vw',
-              height: '100vh',
-              objectFit: 'cover',
-              backgroundColor: '#000',
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              zIndex: 1000,
-            }}
+            className="opening-video"
           />
         </div>
       ) : (
-        <div
-          style={{
-            width: '100vw',
-            height: '100vh',
-            position: 'relative',
-            overflow: 'hidden',
-            backgroundColor: '#000',
-          }}
-        >
+        <div className="opening-title-stage">
           <div
             className="opening-background"
             style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
               backgroundImage: `url(${openingBg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
             }}
           />
 
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.7))',
-              zIndex: 1,
-            }}
-          />
+          <div className="opening-title-shade" />
 
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              textAlign: 'center',
-            }}
-          >
+          <div className="opening-title-content">
             <div className="title-shine-container">
-              <h1
-                className="title-text"
-                style={{
-                  fontFamily: 'Cinzel, serif',
-                  fontSize: '5rem',
-                  marginBottom: '3rem',
-                  letterSpacing: '0.2em',
-                  textTransform: 'uppercase',
-                  position: 'relative',
-                }}
-              >
+              <h1 className="title-text">
                 MIND SEEKER
               </h1>
             </div>
@@ -191,18 +126,6 @@ function Opening({ onFinish }: OpeningProps) {
             <button
               className="start-button"
               onClick={handleStart}
-              style={{
-                padding: '15px 30px',
-                fontSize: '1.4rem',
-                backgroundColor: '#4a148c',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)',
-              }}
             >
               ▶️ Start Adventure
             </button>
