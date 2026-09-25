@@ -52,7 +52,7 @@ function Opening({ onFinish }: OpeningProps) {
       try {
         await bgmRef.current.play();
         console.log('Opening BGM再生開始');
-      } catch (error) {
+      } catch {
         if (!isUnmounted && retryCount < MAX_RETRY_COUNT) {
           console.warn(`Opening BGM再生の試行に失敗しました。再試行 ${retryCount + 1}/${MAX_RETRY_COUNT}`);
           retryCount++;

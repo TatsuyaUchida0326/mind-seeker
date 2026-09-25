@@ -1,199 +1,129 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { stages } from './stages';
-import completeSound from './assets/complete.mp3';
-import completeVideo from './assets/complete-video.mp4';
-import celebrationImage from './assets/characters/celebration.png';
+import { getCompletedStageCount, getCompletedUnitCount, learningUnitsByStage, type LearningProgress } from './learning';
 import certificateImage from './assets/certificate.png';
-import { AUDIO_VOLUME } from './audioSettings';
-// 変更点1: 新しいコンポーネントをインポート
-import MapComponent from './components/MapComponent';
-
-// 教材ファイルの読み込み
-import CarminaLesson from './lessons/Carmina';
-import NorneLesson from './lessons/Norne';
-
-const lessonComponents: Record<string, React.FC> = {
-  カルミナ: CarminaLesson,
-  ノルネ: NorneLesson,
-};
 
 interface Props {
-  currentStage: number;
-  setCurrentStage: React.Dispatch<React.SetStateAction<number>>;
+  progress: LearningProgress;
+  onCompleteLesson: (stageId: string, lessonId: string) => boolean;
+  onShowGateOpening: (stageId: string | null) => void;
 }
 
-function LessonPage({ currentStage, setCurrentStage }: Props) {
-  const { name } = useParams();
+function LessonPage({ progress, onCompleteLesson, onShowGateOpening }: Props) {
+  const { stageId = '' } = useParams();
   const navigate = useNavigate();
-  const [showVideo, setShowVideo] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [showBattleField, setShowBattleField] = useState(false);
+  const selectedStage = stages.find(stage => stage.id === stageId);
+  const stageName = selectedStage?.name ?? '';
+  const stageIndex = stages.findIndex(stage => stage.id === stageId);
+  const units = learningUnitsByStage[stageId] ?? [];
+  const isCompleted = progress.completedStageIds.includes(stageId);
+  const completedUnitCount = getCompletedUnitCount(stageId, progress);
+  const [visibleUnitCount, setVisibleUnitCount] = useState(isCompleted ? units.length : Math.min(units.length, Math.max(1, completedUnitCount + 1)));
+  const [showCertificate, setShowCertificate] = useState(false);
+  const nextUnitRef = useRef<HTMLElement>(null);
+  const certificateDialogRef = useRef<HTMLDialogElement>(null);
+  const isAvailable = stageIndex >= 0 && stageIndex <= getCompletedStageCount(progress);
+  const currentUnit = units[visibleUnitCount - 1];
+  const currentUnitIsCompleted = currentUnit ? progress.completedLessonIds.includes(currentUnit.id) : false;
+  const hasNextUnit = visibleUnitCount < units.length;
+  const primaryActionLabel = currentUnitIsCompleted
+    ? hasNextUnit ? '次の教材へ' : '地図へ戻る'
+    : hasNextUnit ? 'この教材を完了して次へ' : '学習を完了して修了証を受け取る';
+  const certificateActionLabel = stageIndex + 1 < stages.length
+    ? '次の街の扉を開く'
+    : '修了証を確認して地図へ戻る';
 
-  if (!name) return <p>ステージが見つかりません。</p>;
+  useEffect(() => {
+    nextUnitRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [visibleUnitCount]);
 
-  const isCurrent = name === stages[currentStage].name;
-  const currentIndex = stages.findIndex(stage => stage.name === name);
-  const isCompleted = currentIndex < currentStage;
+  useEffect(() => {
+    const certificateDialog = certificateDialogRef.current;
+    if (showCertificate && certificateDialog && !certificateDialog.open) certificateDialog.showModal();
+    if (!showCertificate && certificateDialog?.open) certificateDialog.close();
+  }, [showCertificate]);
 
-  const handleComplete = () => {
-    if (isCurrent) {
-      const audio = new Audio(completeSound);
-      audio.volume = AUDIO_VOLUME;
-      audio.play();
-
-      setShowCelebration(true);
-      setCurrentStage(prev => prev + 1);
-    } else {
-      alert('このステージはまだ進めません。');
-    }
-  };
-
-  const handleContinue = () => {
-    setShowCelebration(false);
-    setShowVideo(true);
-  };
-
-  // バトルフィールドから戻る処理
-  const handleReturnFromField = () => {
-    setShowBattleField(false);
-  };
-
-  const LessonContent = lessonComponents[name] || (() => <p>教材が見つかりません。</p>);
-
-  // バトルフィールド表示中の場合
-  // 変更点2: Map コンポーネントを MapComponent に変更
-  if (showBattleField) {
-    return <MapComponent onReturn={handleReturnFromField} />;
+  if (!isAvailable || units.length === 0) {
+    return (
+      <main className="lesson-page">
+        <p>この街はまだ解放されていません。</p>
+        <button className="course-start" onClick={() => navigate('/')}>地図へ戻る</button>
+      </main>
+    );
   }
 
+  const finishUnit = () => {
+    const unitToComplete = currentUnit;
+    if (!unitToComplete) return;
+    const hasCompletedUnit = progress.completedLessonIds.includes(unitToComplete.id);
+    if (!hasCompletedUnit) {
+      const stageCompleted = onCompleteLesson(stageId, unitToComplete.id);
+      if (stageCompleted) setShowCertificate(true);
+      else setVisibleUnitCount(count => count + 1);
+    } else if (hasNextUnit) {
+      setVisibleUnitCount(count => count + 1);
+    } else navigate('/');
+  };
+
+  const continueAfterCertificate = () => {
+    setShowCertificate(false);
+    const nextStage = stages[stageIndex + 1];
+    if (!nextStage) { navigate('/'); return; }
+    onShowGateOpening(nextStage.id);
+    navigate('/');
+  };
+
   return (
-    <div style={{ padding: '2rem', textAlign: 'center', position: 'relative' }}>
-      <h1>{name} の教材ページ</h1>
-      <LessonContent />
-
-      {showCelebration && (
-        <div className="celebration-overlay">
-          {name === 'カルミナ' ? (
-            <>
-              <div className="celebration-content">
-                <div className="certificate-container">
-                  <img 
-                    src={certificateImage} 
-                    alt="Certificate" 
-                    className="certificate-image"
-                  />
-                </div>
-                <div className="character-container">
-                  <div className="speech-bubble">
-                    <div className="speaker-name">カルミナの村長</div>
-                    <p className="speech-text">
-                      勇気の象徴、賢者の剣を手にしました！<br/>
-                      素晴らしい進歩ですね！<br/>
-                      あなたの成長を見守っていますよ。
-                    </p>
-                  </div>
-                  <img 
-                    src={celebrationImage} 
-                    alt="Celebration" 
-                    className="celebration-character"
-                  />
-                </div>
-                <div className="continue-button-container">
-                  <button 
-                    className="continue-button"
-                    onClick={handleContinue}
-                  >
-                    次へ進む ▶️
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="celebration-content">
-                <div className="character-container">
-                  <div className="speech-bubble">
-                    <p className="speech-text">
-                      素晴らしい進歩ですね！<br/>
-                      次のステージに進みましょう！
-                    </p>
-                  </div>
-                  <img 
-                    src={celebrationImage} 
-                    alt="Celebration" 
-                    className="celebration-character"
-                  />
-                </div>
-                <div className="continue-button-container">
-                  <button 
-                    className="continue-button"
-                    onClick={handleContinue}
-                  >
-                    次へ進む ▶️
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
+    <main className="lesson-page">
+      <header className="lesson-header">
+        <button className="lesson-back" onClick={() => navigate('/')}>← 地図へ</button>
+        <span className="eyebrow">{stageIndex + 1} / {stages.length} 街</span>
+        <h1>{stageName}の教材</h1>
+        <p>教材 {completedUnitCount} / {units.length}</p>
+        <div className="lesson-progress">
+          <span style={{ '--progress-width': `${completedUnitCount / units.length * 100}%` } as React.CSSProperties} />
         </div>
-      )}
+      </header>
 
-      {showVideo ? (
-        <div className="video-fullscreen">
-          <video
-            src={completeVideo}
-            autoPlay
-            controls={false}
-            onEnded={() => navigate('/')}
-            style={{ 
-              width: '100vw', 
-              height: '100vh', 
-              objectFit: 'cover', 
-              position: 'fixed',
-              top: 0, 
-              left: 0, 
-              zIndex: 1000 
-            }}
-          />
-          <button 
-            className="rpg-skip-button"
-            onClick={() => navigate('/')}
+      <div className="lesson-units">
+        {units.slice(0, visibleUnitCount).map((unit, index) => (
+          <article
+            key={unit.id}
+            ref={index === visibleUnitCount - 1 && !isCompleted ? nextUnitRef : null}
+            className="lesson-unit"
           >
-            <span style={{ fontSize: '1.2em' }}>⏭</span>
-            <span>スキップしてMapへ</span>
-          </button>
-        </div>
-      ) : (
-        <div className="button-group">
-          {isCurrent && (
-            <>
-              <button className="read-button" onClick={handleComplete}>
-                📘 読了する
-              </button>
-              <button className="field-button" onClick={() => setShowBattleField(true)}>
-                ⚔️ フィールドへ出る
-              </button>
-              <button className="map-back-button" onClick={() => navigate('/')}>
-                🗺 Mapに戻る
-              </button>
-            </>
-          )}
+            <p className="eyebrow">教材 {index + 1}</p>
+            <h2>{unit.title}</h2>
+            <p className="unit-summary">{unit.summary}</p>
+            <div className="lesson-content"><p>{unit.body}</p></div>
+          </article>
+        ))}
+      </div>
 
-          {isCompleted && (
-            <>
-              <button className="complete-button" disabled>
-                <span className="crown-icon">👑</span>
-                Completed!
-              </button>
-              <button className="map-back-button" onClick={() => navigate('/')}>
-                🗺 Mapに戻る
-              </button>
-            </>
-          )}
-        </div>
+      <footer className="lesson-footer">
+        <button className="course-start" onClick={finishUnit}>{primaryActionLabel} →</button>
+      </footer>
+
+      {showCertificate && (
+        <dialog
+          ref={certificateDialogRef}
+          className="certificate-overlay"
+          aria-labelledby="certificate-title"
+          onClose={() => setShowCertificate(false)}
+        >
+          <section>
+            <img src={certificateImage} alt="修了証" />
+            <p className="eyebrow">COURSE COMPLETED</p>
+            <h2 id="certificate-title">{stageName} 修了証</h2>
+            <p>この街の教材をすべて修了しました。次の街へ進めます。</p>
+            <button className="course-start" onClick={continueAfterCertificate}>
+              {certificateActionLabel} →
+            </button>
+          </section>
+        </dialog>
       )}
-    </div>
+    </main>
   );
 }
 
