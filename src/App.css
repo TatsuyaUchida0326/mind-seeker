@@ -1,15 +1,17 @@
-/* 画面全体を覆うラッパー。地図全面＋自前スクロール領域にする（スマホと同じ形。地図の向きに応じて
-   はみ出した方向へトラックパッド・ホイール・キーボードでスクロールできる） */
+/* 画面全体を覆うラッパー。地図の端を画面端に保ったまま自前スクロール領域内で移動する */
 .map-wrapper {
   position: fixed;
   inset: 0;
-  /* 端の街も中央へ寄せられるよう、地図の外側にスクロール余白を確保する */
-  padding: 50dvh 50vw;
+  padding: 0;
   background-color: #000;
   display: flex; /* svgがinline要素として余分な隙間を作らないよう、スマホ配置と同じくflexにする */
   overflow: auto;
   /* スクロールバーは地図の上に出ると見栄えが悪いので消す（スクロール自体はできる） */
   scrollbar-width: none;
+}
+
+@media (min-width: 601px) {
+  .map-wrapper { overscroll-behavior: none; }
 }
 .map-wrapper::-webkit-scrollbar {
   display: none;
