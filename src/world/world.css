@@ -14,7 +14,7 @@
 /* 羊皮紙の上の、見出しの上に置く小さな文字 */
 .card-eyebrow { margin: 0; color: #6f5a30; font-size: 11px; letter-spacing: .14em; }
 .world-header h1 { margin: 0; font: 24px Marcellus, serif; letter-spacing: .08em; }
-.world-header > button, .map-controls button, .dialog-action, .world-lesson button { min-height: 44px; border: 1px solid #e8c87c; border-radius: 7px; padding: 9px 13px; background: #f5e6bf; color: #34281d; font-weight: 800; }
+.world-header > button, .map-controls button, .dialog-action, .world-lesson button, .progress-reset button { min-height: 44px; border: 1px solid #e8c87c; border-radius: 7px; padding: 9px 13px; background: #f5e6bf; color: #34281d; font-weight: 800; }
 .world-header > button { background: #3e4a4b; color: #f9edca; }
 .map-controls button:disabled, .world-lesson button:disabled { opacity: .45; cursor: not-allowed; }
 .world-lesson .lesson-next, .world-page .dialog-action, .world-lesson .dialog-action { background: #e7b54d; box-shadow: 0 4px 0 #8c692f; }
@@ -22,6 +22,8 @@
 @media (hover: hover) {
   .world-header > button:hover, .map-controls button:hover:not(:disabled), .place-index summary:hover, .world-lesson button:hover:not(:disabled) { border-color: #e9b44c; box-shadow: 0 0 0 2px #e9b44c88; }
   .dialog-close:hover, .notice button:hover { border-radius: 6px; background: #0000000f; }
+  .progress-reset button:hover { box-shadow: 0 0 0 2px #8c692f; }
+  .progress-reset .progress-reset-confirm:hover { box-shadow: 0 0 0 2px #fff8ec, 0 0 0 4px #8a2c24; }
   /* 立体の影は残し、濃い縁を重ねる */
   .world-lesson .lesson-next:hover:not(:disabled), .world-page .dialog-action:hover:not(:disabled), .world-lesson .dialog-action:hover:not(:disabled) { border-color: #8c692f; background: #f0c463; box-shadow: 0 4px 0 #8c692f, 0 0 0 2px #8c692f; }
   .world-page .map-destination:hover { border-color: #e9b44c; box-shadow: 0 4px 0 #6c5536, 0 0 0 2px #e9b44c; }
@@ -108,14 +110,16 @@
 .dialog-close { position: absolute; top: 7px; right: 10px; }
 .dialog-action { margin-top: 12px; }
 /* 金の枠は dialog 自身に付け、中身をスクロールしても上辺が流れて消えないようにする */
-.items-dialog { width: min(760px, 94vw); max-width: none; border: 4px solid #d8ad58; background: #f5e6bf; }
+.items-dialog { width: min(900px, 94vw); max-width: none; border: 4px solid #d8ad58; background: #f5e6bf; }
 .world-dialog-card.items-panel { padding: 0 0 18px; border: 0; border-radius: 0; }
 /* 一覧が長くなっても閉じるボタンが見えるよう、見出しの帯を上に留める */
 .items-panel-head { position: sticky; z-index: 1; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #d6bd7f; padding: 10px 14px 10px 22px; background: #f5e6bf; }
 .items-panel-head h2 { margin: 0; }
 .items-panel-head .dialog-close { position: static; }
-.items-panel-body { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding: 16px 22px 0; }
-.avatar-art { display: block; width: 100%; max-width: 220px; height: auto; margin: 0 auto; }
+.items-panel-body { display: grid; grid-template-columns: minmax(250px, 300px) 1fr; gap: 20px; padding: 16px 22px 0; }
+.avatar-art { display: block; width: 100%; max-width: 300px; margin: 0 auto; }
+.avatar-art img { display: block; width: 100%; height: auto; }
+.avatar-stage-name { margin: 8px 0 0; color: #34281d; font-weight: 900; text-align: center; }
 .avatar-note { color: #5b4423; font-size: 12px; line-height: 1.6; text-align: center; }
 .items-panel-lists h3 { margin: 4px 0 6px; color: #5b4423; font-size: 15px; }
 .item-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 16px; margin: 0 0 14px; padding: 0; list-style: none; }
@@ -123,6 +127,13 @@
 .item-list b { display: block; }
 .item-list small { color: #5b4423; line-height: 1.5; text-wrap: pretty; }
 .empty-copy { color: #5b4423; }
+/* テスト運転用のやり直し。学習の操作と見分けられるよう、点線の枠で分ける */
+.progress-reset { margin: 18px 22px 0; border: 1px dashed #b08f4f; border-radius: 8px; padding: 10px 14px 12px; }
+.progress-reset h3 { margin: 0 0 6px; color: #6f5a30; font-size: 12px; letter-spacing: .1em; }
+.progress-reset p { margin: 0 0 8px; color: #5b4423; line-height: 1.6; }
+.progress-reset button { border-color: #8c692f; background: #fbf3dc; }
+.progress-reset .progress-reset-confirm { border-color: #8a2c24; background: #8a2c24; color: #fff8ec; }
+.progress-reset-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .place-phases { margin: 10px 0 0; padding: 0; list-style: none; line-height: 1.7; }
 .item-name { display: inline-block; }
 
@@ -150,11 +161,51 @@
 .phase-training p { margin: 6px 0; color: #5b4423; }
 .message-screen > button { margin-top: 8px; }
 .world-lesson footer { padding: 23px; text-align: center; }
-.world-certificate { width: min(480px, 90vw); padding: 34px; border: 4px solid #d8ad58; border-radius: 10px; background: #f5e6bf; color: #30251d; text-align: center; }
+.world-certificate { width: min(560px, 90vw); padding: 34px; border: 4px solid #d8ad58; border-radius: 10px; background: #f5e6bf; color: #30251d; text-align: center; }
 .world-certificate h2 { font-family: Marcellus, 'Noto Sans JP', serif; font-size: 28px; text-wrap: balance; }
 .world-certificate p { word-break: auto-phrase; text-wrap: pretty; }
 .item-keyword { color: #5b4423; font-style: italic; }
 .item-equipment { font-weight: 800; }
+
+/* 人物画像そのものには矩形の光を重ねず、楕円形のオーラだけを広げる。 */
+.character-promotion { position: relative; display: grid; place-items: center; width: min(100%, 270px); min-height: 330px; margin: 14px auto; isolation: isolate; }
+.character-promotion img { grid-area: 1 / 1; display: block; width: 100%; max-height: 330px; object-fit: contain; }
+.character-promotion-static img { position: relative; z-index: 1; }
+.character-promotion-active { animation: character-promotion-complete 2s linear both; }
+.character-promotion-active img { position: relative; z-index: 2; }
+.character-promotion-before { animation: character-promotion-before 2s linear both, character-promotion-image-glow 2s ease-in-out both; }
+.character-promotion-after { animation: character-promotion-after 2s linear both, character-promotion-image-glow 2s ease-in-out both; }
+.character-promotion-aura { grid-area: 1 / 1; z-index: 3; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(ellipse closest-side, #ffffff 0%, #d9f5ffdb 33%, #9bdbff66 60%, #9bdbff00 100%); opacity: 0; pointer-events: none; transform: scale(.35); animation: character-promotion-aura 2s ease-in-out both; }
+.character-promotion-label { position: absolute; z-index: 4; bottom: 6px; margin: 0; padding: 4px 8px; border-radius: 4px; background: #30251dc9; color: #fff7de; font-size: 12px; font-weight: 900; opacity: 0; animation: character-promotion-label 2s linear both; }
+.character-promotion-error { margin: 12px 0; color: #8a2c24; font-weight: 700; }
+@keyframes character-promotion-complete { 0%, 100% { opacity: 1; } }
+@keyframes character-promotion-before { 0%, 54% { opacity: 1; } 56%, 100% { opacity: 0; } }
+@keyframes character-promotion-after { 0%, 55% { opacity: 0; } 56%, 100% { opacity: 1; } }
+@keyframes character-promotion-image-glow { 0%, 42%, 64%, 100% { filter: none; } 48%, 58% { filter: brightness(1.65) saturate(.8) drop-shadow(0 0 20px #d8f6ff); } }
+@keyframes character-promotion-aura { 0%, 16% { opacity: 0; transform: scale(.35); } 48%, 58% { opacity: .94; transform: scale(1.35); } 100% { opacity: 0; transform: scale(1.75); } }
+@keyframes character-promotion-label { 0%, 54% { opacity: 0; } 62%, 100% { opacity: 1; } }
+
+.character-promotion-preview-0, .character-promotion-preview-0 > *, .character-promotion-preview-500, .character-promotion-preview-500 > *, .character-promotion-preview-1000, .character-promotion-preview-1000 > *, .character-promotion-preview-1500, .character-promotion-preview-1500 > *, .character-promotion-preview-2000, .character-promotion-preview-2000 > * { animation-play-state: paused; }
+.character-promotion-preview-0, .character-promotion-preview-0 > * { animation-delay: 0ms; }
+.character-promotion-preview-500, .character-promotion-preview-500 > * { animation-delay: -500ms; }
+.character-promotion-preview-1000, .character-promotion-preview-1000 > * { animation-delay: -1000ms; }
+.character-promotion-preview-1500, .character-promotion-preview-1500 > * { animation-delay: -1500ms; }
+.character-promotion-preview-2000, .character-promotion-preview-2000 > * { animation-delay: -2000ms; }
+
+.character-preview { box-sizing: border-box; min-height: 100svh; padding: clamp(20px, 5vw, 60px); background: radial-gradient(circle at 50% 0, #405675, #182637 70%); color: #f7e9c7; font-family: 'Noto Sans JP', sans-serif; text-align: center; }
+.character-preview > header, .character-preview > section { box-sizing: border-box; width: min(560px, 100%); margin: 0 auto; }
+.character-preview h1 { margin: 4px 0 18px; font: clamp(30px, 5vw, 48px) Marcellus, 'Noto Sans JP', serif; }
+.character-preview header > p { margin: 0; color: #f3cf7f; font-size: 12px; letter-spacing: .18em; }
+.character-preview label { display: block; margin-bottom: 6px; font-weight: 900; }
+.character-preview .character-preview-time-control { margin-top: 13px; }
+.character-preview select, .character-preview button { min-height: 44px; border: 1px solid #e8c87c; border-radius: 7px; padding: 9px 13px; font: inherit; }
+.character-preview select { max-width: 100%; background: #f5e6bf; color: #34281d; }
+.character-preview button { margin-left: 8px; background: #e7b54d; color: #34281d; font-weight: 800; cursor: pointer; }
+.character-preview button:disabled { opacity: .45; cursor: not-allowed; }
+.character-preview > section { margin-top: 22px; border: 3px solid #d8ad58; border-radius: 10px; padding: 14px; background: #f5e6bf; color: #30251d; }
+.character-preview > section .avatar-art { max-width: 270px; }
+.character-preview h2 { margin: 5px 0; }
+.character-preview > section > p { margin: 0; color: #5b4423; }
 
 @media (max-width: 600px) and (orientation: portrait) {
   .world-page { --world-header-height: 56px; }
@@ -165,7 +216,7 @@
   .world-progress { min-width: 76px; }
   .world-map-scroll { cursor: auto; }
   .items-panel-body { grid-template-columns: 1fr; }
-  .avatar-art { max-width: 160px; }
+  .avatar-art { max-width: 220px; }
   .world-page .map-destination { width: min(164px, 44vw); min-height: 50px; font-size: 12px; }
   .map-controls { right: 8px; bottom: 8px; }
   .world-lesson { padding: 18px 13px; }
@@ -173,6 +224,9 @@
   .lesson-card article p { font-size: 14px; }
   .world-certificate { padding: 24px 18px; }
   .world-certificate h2 { font-size: clamp(20px, 6vw, 28px); }
+  .character-promotion { width: min(100%, 220px); min-height: 268px; }
+  .character-promotion img { max-height: 268px; }
+  .character-preview button { display: block; margin: 9px auto 0; }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
@@ -180,8 +234,8 @@
   .world-canvas.wide { width: calc(max(2350px, 289vw) * var(--map-zoom)); }
   .world-dialog { max-height: 96svh; }
   .world-dialog-card { padding: 16px; }
-  .items-panel-body { grid-template-columns: 140px 1fr; }
-  .avatar-art { max-width: 140px; }
+  .items-panel-body { grid-template-columns: 180px 1fr; }
+  .avatar-art { max-width: 180px; }
   /* 地図の高さが低いので、操作ボタンは右上、次の目的地の案内は左下へ寄せて、目的地のラベルと重ねない */
   .map-controls { top: 8px; right: 8px; bottom: auto; }
   .place-index > div { top: calc(100% + 8px); bottom: auto; max-height: calc(100svh - 140px); }
@@ -192,14 +246,21 @@
   .items-panel-head { padding: 4px 8px 4px 16px; }
   .items-panel-head h2 { font-size: 22px; }
   .items-panel-body { padding: 12px 16px 0; }
+  .progress-reset { margin: 12px 16px 0; }
   .world-certificate { padding: 14px 16px; }
   .world-certificate h2 { margin: 4px 0; font-size: 20px; }
   .world-certificate p { margin: 6px 0; line-height: 1.5; }
   .world-certificate .dialog-action { margin-top: 4px; }
+  .character-promotion { width: 150px; min-height: 180px; margin: 5px auto; }
+  .character-promotion img { max-height: 180px; }
+  .character-promotion-label { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; animation: none !important; }
   .chimney-smoke-preview image { opacity: .72; }
   .chimney-smoke-preview image + image { display: none; }
+  .character-promotion-active, .character-promotion-before, .character-promotion-after, .character-promotion-aura, .character-promotion-label { animation: none; }
+  .character-promotion-before, .character-promotion-aura, .character-promotion-label { display: none; }
+  .character-promotion-after { opacity: 1; }
 }

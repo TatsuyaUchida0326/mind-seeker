@@ -179,6 +179,15 @@ export function completePhase(progress: WorldProgress, phaseId: string): WorldPr
   return { ...progress, completedPhaseIds: [...progress.completedPhaseIds, phaseId] };
 }
 
+// テスト運転の期間だけ、持ち物パネルに「最初からやり直す」を出す（公開サイトにも出る）
+// TODO: テスト運転が終わったら false にする
+export const progressResetEnabled = true;
+
+// 修了したフェーズと持ち物をすべて消し、旅立ち前の状態に戻す
+export function resetWorldProgress(progress: WorldProgress): WorldProgress {
+  return { ...progress, completedPhaseIds: [], migration: { legacyPhaseCount: 0, noticeDismissed: true } };
+}
+
 export function placeState(progress: WorldProgress, place: Place): PlaceState {
   if (completedPhaseCountIn(progress, place) === place.phases.length) return 'done';
   return currentPhaseIn(progress, place) ? 'current' : 'locked';

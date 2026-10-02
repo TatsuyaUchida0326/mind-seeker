@@ -1,5 +1,7 @@
 import { AvatarArt } from './AvatarArt';
-import { ownedKeepsakes, wornEquipment } from './progress';
+import { characterStageForCompletedPhases } from './characterStages';
+import { ProgressReset } from './ProgressReset';
+import { completedPhaseCount, ownedKeepsakes, wornEquipment } from './progress';
 import type { WorldProgress } from './progress';
 import { equipmentCount, keepsakeCount } from './story';
 import type { Item } from './story';
@@ -7,6 +9,8 @@ import type { Item } from './story';
 interface ItemsPanelProps {
   progress: WorldProgress;
   onClose: () => void;
+  // 渡されたときだけ「最初からやり直す」を出す。保存できたら true を返す
+  onResetProgress?: () => boolean;
 }
 
 function ItemList<T extends Item>({ list, describe }: { list: T[]; describe: (item: T) => string }) {
@@ -22,9 +26,10 @@ function ItemList<T extends Item>({ list, describe }: { list: T[]; describe: (it
   );
 }
 
-export function ItemsPanel({ progress, onClose }: ItemsPanelProps) {
+export function ItemsPanel({ progress, onClose, onResetProgress }: ItemsPanelProps) {
   const worn = wornEquipment(progress);
   const keepsakes = ownedKeepsakes(progress);
+  const stage = characterStageForCompletedPhases(completedPhaseCount(progress));
 
   return (
     <section className="world-dialog-card items-panel" aria-labelledby="items-title">
@@ -34,8 +39,9 @@ export function ItemsPanel({ progress, onClose }: ItemsPanelProps) {
       </div>
       <div className="items-panel-body">
         <div>
-          <AvatarArt wornCount={worn.length} equipmentCount={equipmentCount} className="avatar-art" />
-          <p className="avatar-note">装備を手に入れるたびに、旅人の姿が変わります（姿の絵は準備中です）。</p>
+          <AvatarArt stage={stage} className="avatar-art" />
+          <p className="avatar-stage-name">{stage.name}</p>
+          <p className="avatar-note">{stage.description}</p>
         </div>
         <div className="items-panel-lists">
           <h3>装備 {worn.length} / {equipmentCount}</h3>
@@ -48,6 +54,7 @@ export function ItemsPanel({ progress, onClose }: ItemsPanelProps) {
             : <ItemList list={keepsakes} describe={(item) => item.effect} />}
         </div>
       </div>
+      {onResetProgress && <ProgressReset onReset={onResetProgress} />}
     </section>
   );
 }

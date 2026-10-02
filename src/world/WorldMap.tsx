@@ -19,6 +19,8 @@ interface WorldMapProps {
   progress: WorldProgress;
   notice: Notice | null;
   onDismissNotice: () => void;
+  // 進捗を最初に戻す（テスト運転用）
+  onResetProgress?: () => boolean;
 }
 
 const defaultZoom = 1;
@@ -61,7 +63,7 @@ function MapButton({ place, layout, state, onClick }: MapButtonProps) {
   );
 }
 
-export default function WorldMap({ progress, notice, onDismissNotice }: WorldMapProps) {
+export default function WorldMap({ progress, notice, onDismissNotice, onResetProgress }: WorldMapProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -75,6 +77,9 @@ export default function WorldMap({ progress, notice, onDismissNotice }: WorldMap
   const [selected, setSelected] = useState<Place | null>(null);
   const [zoom, setZoom] = useState(defaultZoom);
   const [fitZoom, setFitZoom] = useState(defaultZoom);
+  // 持ち物パネルは閉じるたびに作り直し、やり直しの確認を途中のまま残さない。
+  // 開くときに作り直すと、showModal が当てたフォーカスごと消えてしまう
+  const [itemsPanelKey, setItemsPanelKey] = useState(0);
   const isDesktop = useMediaQuery('(hover: hover) and (pointer: fine)');
   const layout: MapLayout = useMediaQuery(tallLayoutQuery) ? 'tall' : 'wide';
   const { width: mapWidth, height: mapHeight } = mapSizes[layout];
@@ -101,6 +106,7 @@ export default function WorldMap({ progress, notice, onDismissNotice }: WorldMap
   };
   const closeItems = () => {
     itemsDialogRef.current?.close();
+    setItemsPanelKey((key) => key + 1);
     openerRef.current?.focus();
   };
 
@@ -329,7 +335,7 @@ export default function WorldMap({ progress, notice, onDismissNotice }: WorldMap
       </dialog>
 
       <dialog ref={itemsDialogRef} className="world-dialog items-dialog" onClose={closeItems} aria-labelledby="items-title">
-        <ItemsPanel progress={progress} onClose={closeItems} />
+        <ItemsPanel key={itemsPanelKey} progress={progress} onClose={closeItems} onResetProgress={onResetProgress} />
       </dialog>
     </main>
   );

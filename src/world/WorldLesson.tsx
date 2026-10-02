@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MessageScreen } from './MessageScreen';
 import { NoticeRegion } from './NoticeRegion';
+import { CharacterPromotion } from './CharacterPromotion';
 import type { Notice } from './NoticeRegion';
 import { ProgressMeter } from './ProgressMeter';
 import { completePhase, completedPhaseCountIn, currentPhaseIn, isPhaseComplete, placeState, wornEquipment } from './progress';
@@ -9,6 +10,7 @@ import type { WorldProgress } from './progress';
 import { chapterOfPlace, equipmentCount, findPlace, phases, placeKindLabel, placeOfPhase } from './story';
 import type { Phase } from './story';
 import { scrollBehavior } from './motion';
+import { characterPromotionForCompletion } from './characterStages';
 
 export interface WorldLessonProps {
   progress: WorldProgress;
@@ -134,6 +136,7 @@ export default function WorldLesson({ progress, onSaveProgress, notice, onDismis
   const followingPhase = acquiredPhase ? phases[phases.indexOf(acquiredPhase) + 1] : undefined;
   const followingPlace = followingPhase ? placeOfPhase(followingPhase) : null;
   const afterAcquire: AfterAcquire = followingPlace === place ? 'samePlace' : followingPlace ? 'nextPlace' : 'finished';
+  const promotion = acquiredPhase ? characterPromotionForCompletion(acquiredPhase.number) : null;
 
   const completeCurrentPhase = () => {
     if (!currentPhase) return;
@@ -197,6 +200,7 @@ export default function WorldLesson({ progress, onSaveProgress, notice, onDismis
             <p className="card-eyebrow">PHASE {acquiredPhase.number} COMPLETED</p>
             {/* 名前の途中で改行しないよう、名前はひとかたまりにする */}
             <h2 id="acquired-title"><span className="item-name">「{acquiredPhase.item.name}」</span>を手に入れた</h2>
+            {promotion && <CharacterPromotion key={acquiredPhase.id} beforeStage={promotion.before} afterStage={promotion.after} />}
             <p>{acquiredPhase.item.effect}</p>
             <p className="item-keyword">{acquiredPhase.item.keyword}</p>
             {acquiredPhase.item.equipment && (

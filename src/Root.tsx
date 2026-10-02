@@ -3,6 +3,7 @@ import { Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import Opening from './Opening';
 import './App.css';
 import { stages } from './stages';
+import { CharacterPreview } from './world/CharacterPreview';
 import { MessageScreen } from './world/MessageScreen';
 import WorldLesson from './world/WorldLesson';
 import type { WorldLessonProps } from './world/WorldLesson';
@@ -14,7 +15,9 @@ import {
   isStorageEventForProgress,
   loadOrCreateWorldProgress,
   migrationNoticeMessage,
+  progressResetEnabled,
   readLatestProgress,
+  resetWorldProgress,
   saveErrorMessage,
   saveWorldProgress,
   shouldShowMigrationNotice,
@@ -106,7 +109,9 @@ function LearningApp({ initialProgress }: { initialProgress: WorldProgress }) {
     return null;
   };
   const mapNotice = chooseMapNotice();
-  const map = <WorldMap progress={progress} notice={mapNotice?.notice ?? null} onDismissNotice={mapNotice?.dismiss ?? clearStorageNotice} />;
+  // 設定で止めているときは渡さず、ボタンも出さない
+  const resetProgress = progressResetEnabled ? () => saveProgress(resetWorldProgress(progress)) : undefined;
+  const map = <WorldMap progress={progress} notice={mapNotice?.notice ?? null} onDismissNotice={mapNotice?.dismiss ?? clearStorageNotice} onResetProgress={resetProgress} />;
   const goToMap = () => { window.location.href = import.meta.env.BASE_URL; };
 
   return (
@@ -119,9 +124,15 @@ function LearningApp({ initialProgress }: { initialProgress: WorldProgress }) {
   );
 }
 
-function Root() {
+function LearningRoot() {
   const [initial] = useState(loadOrCreateWorldProgress);
   return initial.ok ? <LearningApp initialProgress={initial.progress} /> : <BlockedScreen error={initial.error} />;
+}
+
+function Root() {
+  // 開発用プレビューは進捗を読んだり保存したりしない独立画面にする。
+  if (import.meta.env.DEV && window.location.pathname === '/character-preview') return <CharacterPreview />;
+  return <LearningRoot />;
 }
 
 export default Root;

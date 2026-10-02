@@ -21,7 +21,33 @@
 
 ## よく使う画像
 
+- 第3章3枚目・採用済み（悟りの書を開く最終賢者v4）: [human-sage-final-v4.png](../src/assets/characters/sage/human-sage-final-v4.png)
+
+- 第3章2枚目・採用済み（洗練したロングコート・本なしv4）: [human-sage-without-book-v4.png](../src/assets/characters/sage/human-sage-without-book-v4.png)
+
+- 第3章1枚目・採用済み（都会の探求者v3、旧採用v2は保持）: [human-beige-jacket-holding-compass-v3.png](../src/assets/characters/sage/human-beige-jacket-holding-compass-v3.png)
+
+- 第2章3枚目・採用済み（新人サラリーマン）: [human-new-salaryman.png](../src/assets/characters/traveler/human-new-salaryman.png)
+
+- 第2章2枚目・採用済み（作業監督）: [human-workshop-supervisor.png](../src/assets/characters/traveler/human-workshop-supervisor.png)
+
+- 第2章1枚目・採用済み（工房の作業着・革エプロン）: [human-workshop-worker.png](../src/assets/characters/traveler/human-workshop-worker.png)
+
+- 第1章3枚目の正式採用画像（一人前の旅人・オリーブ上着・腰の羅針盤）: [human-rural-traveler.png](../src/assets/characters/traveler/human-rural-traveler.png)
+
+- 第1章2枚目の正式採用画像（旅立つ青年・茶色ベスト・羅針盤を手に持つ）: [human-rural-departure.png](../src/assets/characters/traveler/human-rural-departure.png)
+
+- スタートの正式採用画像（田舎の青年・前下ろし黒髪・丸メガネ）: [human-rural-start-v2.png](../src/assets/characters/traveler/human-rural-start-v2.png)
+
+- 完成形賢者の再生成版（元画像と採用済み羅針盤画像の質感を参照）: [human-sage-black-hair-glasses-v3.png](../src/assets/characters/sage/human-sage-black-hair-glasses-v3.png)
+- 羅針盤を手に持つ採用衣装の再生成版（元賢者を主参照）: [human-beige-jacket-holding-compass-v2.png](../src/assets/characters/sage/human-beige-jacket-holding-compass-v2.png)
 - 賢者の最新完成画像: [human-sage-black-hair-glasses-v2.png](../src/assets/characters/sage/human-sage-black-hair-glasses-v2.png)
+- 賢者の1段階前（悟りの書なし・自然に両腕を下ろした姿）: [human-sage-stage-7-without-book-v3.png](../src/assets/characters/sage/human-sage-stage-7-without-book-v3.png)
+- 白いワイシャツのサラリーマン風段階案: [human-office-white-shirt.png](../src/assets/characters/sage/human-office-white-shirt.png)
+- 白いジャケット・ズボン・ワイシャツのスーツ案: [human-white-tailored-suit.png](../src/assets/characters/sage/human-white-tailored-suit.png)
+- ベージュジャケット・紺ズボン・白シャツ案: [human-beige-jacket-navy-trousers.png](../src/assets/characters/sage/human-beige-jacket-navy-trousers.png)
+- 同衣装に紺ネクタイを追加した案: [human-beige-jacket-navy-tie.png](../src/assets/characters/sage/human-beige-jacket-navy-tie.png)
+- 同衣装で羅針盤を手に持つ案: [human-beige-jacket-holding-compass.png](../src/assets/characters/sage/human-beige-jacket-holding-compass.png)
 - 選択された1枚目の装備シート: [sage-equipment-sheet.png](../artwork/equipment/sage-equipment-sheet.png)
 - ゲームが現在表示する初期旅人: [traveler-shirt-and-bag.png](../src/assets/characters/traveler/traveler-shirt-and-bag.png)
 
