@@ -1,8 +1,9 @@
 # 引き継ぎ：テスト運転用「最初からやり直す」ボタン
 
-- 更新: 2026-10-02 19:30 ごろ（Claude Code）
+- 更新: 2026-10-02 19:20 ごろ（Claude Code）。コミット・push・公開まで完了
 - 目的: 最後まで修了すると賢者の姿のまま最初に戻れないため、テスト運転用に、通過したカリキュラムを1つのボタンでまとめて消せるようにする
-- 実フォルダ: `/Users/TatsuyaUchida/mind-seeker`、ブランチ `feat/world-map`、HEAD `06f1b3e`。今回分も含めすべて未コミット・未公開（Codex の9段階キャラクター実装の未コミット変更と同じファイルに同居）
+- 実フォルダ: `/Users/TatsuyaUchida/mind-seeker`、ブランチ `feat/world-map`。`df98cbe`（Codex の9段階キャラクター実装と今回のボタンをまとめたコミット）を `feat/world-map` と `main` に push 済み。`main` へは fast-forward で取り込み
+- 公開: GitHub Actions「Deploy to GitHub Pages」run 36994368414 が成功。https://tatsuyauchida0326.github.io/mind-seeker/ が新版（3章・30フェーズ・9段階の姿・リセットボタン）に切り替わった。旧36街版は公開サイトから消えた
 - 経緯・レビュー統合・実測値は `tasks/todo.md` 末尾「テスト運転用の『最初からやり直す』ボタン」
 
 ## 何をやったか
@@ -15,13 +16,14 @@
 ## 今どういう状況か
 
 - 実装完了。build / lint / `git diff --check` 成功。内蔵ブラウザで、リセットの流れ・失敗の流れ・フォーカス・4画面サイズを実測済み
-- ユーザー自身の画面での確認はまだ
-- 開発サーバーは 127.0.0.1:5173 で稼働中（Codex が起動したもの）
+- 公開サイトの確認: 配信中の JS（`index-bhXl95Ln.js`）が手元のビルドと同じで、「最初からやり直す」等の文言を含むことを curl で確認。内蔵ブラウザは github.io への移動が拒否されたため、公開サイトの画面操作は未実施
+- ユーザー自身の画面（PC・スマホ）での確認はまだ
+- 開発サーバーは 127.0.0.1:5173 で稼働中（Codex が起動したもの。`--host` なしのためスマホからは開けない）
 
 ## 次に何をするか
 
-1. ユーザーに「旅人・持ち物」→ 下の「最初からやり直す」を試してもらい、感想を聞く
-2. 指示があればコミット。`main` への push で公開サイトにボタンが出る
+1. ユーザーに公開サイトの「旅人・持ち物」→ 下の「最初からやり直す」を PC・スマホで試してもらい、感想を聞く
+2. 直しがあれば `feat/world-map` で直し、指示を受けてから `main` へ取り込む（push で公開サイトが更新される）
 3. テスト運転が終わったら `src/world/progress.ts` の `progressResetEnabled` を false にする（`TODO:` 付き）。コードごと消すなら `src/world/ProgressReset.tsx` を削除し、ItemsPanel の import と描画の1行、Root の `resetProgress`、WorldMap・ItemsPanel の `onResetProgress`、world.css の `.progress-reset` 系を外す
 
 ## 触ったファイル

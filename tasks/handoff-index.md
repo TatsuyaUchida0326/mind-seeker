@@ -6,4 +6,4 @@
 | 人間主人公の9段階画像・昇格演出（Claude Code引き継ぎ） | 2026-10-02 | `character-human/handoff.md` |
 | 物語・30アイテム・地図構成の設計と実装 | 2026-10-02 | `story/handoff.md` |
 | 素材フォルダ整理と読込導線 | 2026-10-02 | `assets/handoff.md` |
-| テスト運転用「最初からやり直す」ボタン | 2026-10-02 | `progress-reset/handoff.md` |
+| テスト運転用「最初からやり直す」ボタン（公開済み） | 2026-10-02 | `progress-reset/handoff.md` |
