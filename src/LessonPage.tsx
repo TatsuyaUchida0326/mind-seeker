@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { stages } from './stages';
 import { getCompletedStageCount, getCompletedUnitCount, learningUnitsByStage, type LearningProgress } from './learning';
-import certificateImage from './assets/certificate.png';
+import certificateImage from './assets/ui/certificate.png';
 
 interface Props {
   progress: LearningProgress;

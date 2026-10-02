@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import openingVideo from './assets/opening.mp4';
-import openingBg from './assets/opening-bg.jpg';
-import openingBgm from './assets/opening-bgm.mp3';
+import openingVideo from './assets/opening/opening.mp4';
+import openingBg from './assets/opening/opening-bg.jpg';
+import openingBgm from './assets/opening/opening-bgm.mp3';
 import { AUDIO_VOLUME, RETRY_INTERVAL, MAX_RETRY_COUNT } from './audioSettings';
 
 interface OpeningProps {

@@ -1,0 +1,205 @@
+@import url('https://fonts.googleapis.com/css2?family=Marcellus&family=Noto+Sans+JP:wght@500;700;900&display=swap');
+
+/* --world-header-height: ヘッダーの高さ。地図の高さと全体表示の計算に使う
+   --focus-ring: フォーカス枠の色。背景の側で決め、ボタンはそれを受け取る（暗い背景は明るい黄色、羊皮紙は紺） */
+.world-page { --world-header-height: 64px; }
+.world-page, .world-lesson { --focus-ring: var(--focus-ring-on-dark); }
+.world-dialog-card, .world-certificate, .lesson-card article, .next-destination, .notice { --focus-ring: var(--focus-ring-on-parchment); }
+.world-page { min-height: 100svh; background: #17243a; color: #f9edca; font-family: 'Noto Sans JP', sans-serif; }
+.world-page *, .world-lesson * { box-sizing: border-box; }
+.world-page button, .world-lesson button { font: inherit; cursor: pointer; }
+
+.world-header { display: flex; align-items: center; gap: 14px; height: var(--world-header-height); padding: 7px clamp(12px, 3vw, 42px); border-bottom: 3px solid #d8ad58; background: linear-gradient(90deg, #242b38, #3a3032); }
+.world-header p { margin: 0; color: #e9b44c; font-size: 10px; letter-spacing: .16em; }
+/* 羊皮紙の上の、見出しの上に置く小さな文字 */
+.card-eyebrow { margin: 0; color: #6f5a30; font-size: 11px; letter-spacing: .14em; }
+.world-header h1 { margin: 0; font: 24px Marcellus, serif; letter-spacing: .08em; }
+.world-header > button, .map-controls button, .dialog-action, .world-lesson button { min-height: 44px; border: 1px solid #e8c87c; border-radius: 7px; padding: 9px 13px; background: #f5e6bf; color: #34281d; font-weight: 800; }
+.world-header > button { background: #3e4a4b; color: #f9edca; }
+.map-controls button:disabled, .world-lesson button:disabled { opacity: .45; cursor: not-allowed; }
+.world-lesson .lesson-next, .world-page .dialog-action, .world-lesson .dialog-action { background: #e7b54d; box-shadow: 0 4px 0 #8c692f; }
+/* ホバーの見た目はマウスのある端末だけ（タッチではタップ後も残ってしまうため） */
+@media (hover: hover) {
+  .world-header > button:hover, .map-controls button:hover:not(:disabled), .place-index summary:hover, .world-lesson button:hover:not(:disabled) { border-color: #e9b44c; box-shadow: 0 0 0 2px #e9b44c88; }
+  .dialog-close:hover, .notice button:hover { border-radius: 6px; background: #0000000f; }
+  /* 立体の影は残し、濃い縁を重ねる */
+  .world-lesson .lesson-next:hover:not(:disabled), .world-page .dialog-action:hover:not(:disabled), .world-lesson .dialog-action:hover:not(:disabled) { border-color: #8c692f; background: #f0c463; box-shadow: 0 4px 0 #8c692f, 0 0 0 2px #8c692f; }
+  .world-page .map-destination:hover { border-color: #e9b44c; box-shadow: 0 4px 0 #6c5536, 0 0 0 2px #e9b44c; }
+  .world-page .map-destination.current:hover { box-shadow: 0 4px 0 #6c5536, 0 0 0 2px #e9b44c, 0 0 14px #ffe48a; }
+}
+.world-progress { min-width: 145px; margin-left: auto; }
+.world-progress b { color: #e9b44c; font-size: 20px; }
+.world-progress span { margin-left: 4px; font-size: 11px; }
+.progress-meter { height: 6px; margin-top: 3px; overflow: hidden; border-radius: 8px; background: #18212b; }
+.progress-meter i { display: block; width: var(--progress); height: 100%; border-radius: inherit; background: #e9b44c; }
+
+.world-map-shell { position: relative; height: calc(100svh - var(--world-header-height)); overflow: hidden; background: #17243a; }
+.world-map-scroll { display: flex; align-items: safe center; justify-content: safe center; width: 100%; height: 100%; overflow: auto; overscroll-behavior: none; cursor: grab; }
+.world-map-scroll:active { cursor: grabbing; }
+/* 等倍では区画を大きく見せ、縮小時は地図全体を表示する。縦向きのスマホでも同じ幅で、各区画を元の比率のまま横にたどる */
+.world-canvas { position: relative; flex: none; width: calc(max(var(--map-width), 289vw, (100svh - var(--world-header-height)) * 4.5) * var(--map-zoom)); min-width: 0; aspect-ratio: var(--map-aspect); background: #17243a; }
+.world-art { display: block; width: 100%; height: 100%; }
+.windmill-rotor { transform-box: fill-box; transform-origin: 53% 50.9%; animation: windmill-turn 18s linear infinite; }
+@keyframes windmill-turn { to { transform: rotate(360deg); } }
+.chimney-smoke-preview image { opacity: 0; filter: brightness(0) invert(1); transform-box: fill-box; transform-origin: 38% 100%; animation: chimney-smoke-drift 6s ease-out infinite; }
+.chimney-smoke-preview image:nth-child(2) { animation-delay: -2s; }
+.chimney-smoke-preview image:nth-child(3) { animation-delay: -4s; }
+@keyframes chimney-smoke-drift {
+  0% { opacity: 0; transform: translate(0, 5px) scale(.72); }
+  20% { opacity: 1; }
+  65% { opacity: .85; }
+  100% { opacity: 0; transform: translate(1px, -18px) scale(1.06); }
+}
+.world-labels { position: absolute; inset: 0; pointer-events: none; }
+.world-page .map-destination { position: absolute; left: var(--map-x); top: var(--map-y); width: 176px; min-height: 44px; transform: translate(-50%, 85%); border: 2px solid #e5c77c; border-radius: 8px; padding: 5px 8px; background: #f5e6bf; color: #30251d; box-shadow: 0 4px 0 #6c5536; font-size: 13px; font-weight: 900; line-height: 1.3; pointer-events: auto; }
+.map-destination::before { position: absolute; inset: -95px 0 -16px; content: ''; }
+.map-destination span { display: block; color: #6f5a30; font-size: 12px; letter-spacing: .08em; }
+.map-destination span b { display: inline-block; min-width: 15px; color: #564522; font-size: 12px; letter-spacing: 0; }
+.map-destination .map-destination-theme { color: inherit; font-size: inherit; letter-spacing: 0; }
+/* 全体表示では、フェーズの行だけを隠して「記号＋名前」を残す */
+.world-canvas.overview .map-destination { width: auto; max-width: 160px; min-height: 44px; transform: translate(-50%, -50%); padding: 6px 10px; white-space: nowrap; }
+.world-canvas.overview .map-destination::before { inset: -5px; }
+.world-canvas.overview .map-destination-detail { display: none; }
+.map-destination.current { border-color: #f6d26c; background: #fff1bd; box-shadow: 0 4px 0 #6c5536, 0 0 14px #ffe48a; }
+.map-destination.done { border-color: #8fbc83; }
+.map-destination.locked { border-color: #706b5d; background: #bab39e; color: #3f3b34; }
+.map-destination.locked span { color: #4a4234; }
+/* 地図ラベルのフォーカス枠は、地図の色に左右されないよう紺の線を黄色の帯で縁取る。現在地は光彩も残す */
+.world-page .world-canvas .map-destination:focus-visible { outline: 3px solid var(--focus-ring-on-parchment); outline-offset: 2px; box-shadow: 0 4px 0 #6c5536, 0 0 0 7px var(--focus-ring-on-dark); }
+.world-page .world-canvas .map-destination.current:focus-visible { box-shadow: 0 4px 0 #6c5536, 0 0 0 7px var(--focus-ring-on-dark), 0 0 14px #ffe48a; }
+/* 目的地一覧のパネルがお知らせより手前に来るよう、操作ボタンを上に重ねる */
+.map-controls { position: absolute; z-index: 6; right: 16px; bottom: 16px; display: flex; gap: 6px; }
+.map-controls button { min-width: 44px; padding: 6px 10px; font-size: 12px; }
+/* 一覧のパネルは操作ボタン全体の右端にそろえる。ボタンの位置に合わせると狭い画面で左へはみ出す */
+.place-index { position: static; }
+/* summary は button 共通の規則に当たらないので、押せる高さを自分で持つ */
+.place-index summary { display: grid; min-height: 44px; align-items: center; border: 1px solid #e8c87c; border-radius: 7px; padding: 6px 10px; background: #f5e6bf; color: #34281d; font-size: 12px; font-weight: 800; cursor: pointer; }
+.place-index > div { position: absolute; right: 0; bottom: calc(100% + 8px); display: grid; width: min(340px, 88vw); max-height: min(65svh, 540px); gap: 4px; overflow: auto; border: 2px solid #d8ad58; border-radius: 8px; padding: 7px; background: #263835; box-shadow: 0 8px 24px #0008; }
+.place-index section { display: grid; gap: 4px; }
+.place-index section button { width: 100%; text-align: left; }
+.place-index section button.current { border-color: #e9b44c; background: #fff1bd; box-shadow: 0 0 0 2px #e9b44c88; }
+.place-index section button.locked { background: #bab39e; color: #3f3b34; }
+.place-index h3 { margin: 6px 2px 2px; color: #e9b44c; font-size: 12px; letter-spacing: .08em; }
+/* お知らせの領域（NoticeRegion）。status と alert の2つを常に置き、空のときは見えなくする */
+.notice-region { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.notice { display: flex; align-items: center; gap: 6px; width: max-content; max-width: 100%; padding: 4px 4px 4px 14px; border: 2px solid #d8ad58; border-radius: 8px; background: #f5e6bf; color: #34281d; line-height: 1.6; box-shadow: 0 8px 18px #0008; }
+.notice.error { border-color: #df8c63; background: #fff3db; color: #5b3022; }
+.notice.empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); padding: 0; border: 0; box-shadow: none; }
+/* text-wrap: pretty と組み合わせると「もう｜一度」のように語の途中で切れるため、文節での改行だけにする */
+.notice span { word-break: auto-phrase; }
+.notice button, .dialog-close { min-width: 44px; min-height: 44px; border: 0; background: none; font-size: 21px; cursor: pointer; }
+.notice button { flex: none; }
+/* 地図では、お知らせと次の目的地の案内を左上に縦に並べる */
+.map-notices { position: absolute; z-index: 5; top: 16px; left: 16px; max-width: min(520px, calc(100% - 32px)); pointer-events: none; }
+.map-notices > * { pointer-events: auto; }
+/* 教材では、修了ボタンを押した位置から見えるよう画面の下に留める */
+.lesson-notices .notice:not(.empty) { margin-top: 15px; }
+.lesson-notices { position: sticky; z-index: 3; bottom: 16px; align-items: center; max-width: 850px; margin: 0 auto; }
+.next-destination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: 100%; border: 2px solid #d8ad58; border-radius: 8px; padding: 10px 14px; background: #f5e6bf; color: #30251d; box-shadow: 0 8px 18px #0008; }
+.no-wrap { white-space: nowrap; }
+.next-destination p { margin: 0; font-size: 14px; line-height: 1.6; word-break: auto-phrase; text-wrap: pretty; }
+.world-page .next-destination .dialog-action { margin: 0; }
+
+.world-dialog { max-width: min(480px, 92vw); max-height: 92svh; overflow-y: auto; padding: 0; border: 0; border-radius: 12px; background: transparent; }
+.world-dialog::backdrop, .world-certificate::backdrop { background: #0009; }
+.world-dialog-card { position: relative; padding: 28px; border: 4px solid #d8ad58; border-radius: 12px; background: #f5e6bf; color: #30251d; }
+.world-dialog-card h2 { margin: 5px 0; font: 30px Marcellus, 'Noto Sans JP', serif; }
+.world-dialog-card strong, .world-dialog-card > p { line-height: 1.8; }
+.dialog-close { position: absolute; top: 7px; right: 10px; }
+.dialog-action { margin-top: 12px; }
+/* 金の枠は dialog 自身に付け、中身をスクロールしても上辺が流れて消えないようにする */
+.items-dialog { width: min(760px, 94vw); max-width: none; border: 4px solid #d8ad58; background: #f5e6bf; }
+.world-dialog-card.items-panel { padding: 0 0 18px; border: 0; border-radius: 0; }
+/* 一覧が長くなっても閉じるボタンが見えるよう、見出しの帯を上に留める */
+.items-panel-head { position: sticky; z-index: 1; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #d6bd7f; padding: 10px 14px 10px 22px; background: #f5e6bf; }
+.items-panel-head h2 { margin: 0; }
+.items-panel-head .dialog-close { position: static; }
+.items-panel-body { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding: 16px 22px 0; }
+.avatar-art { display: block; width: 100%; max-width: 220px; height: auto; margin: 0 auto; }
+.avatar-note { color: #5b4423; font-size: 12px; line-height: 1.6; text-align: center; }
+.items-panel-lists h3 { margin: 4px 0 6px; color: #5b4423; font-size: 15px; }
+.item-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 16px; margin: 0 0 14px; padding: 0; list-style: none; }
+.item-list li { border-top: 1px solid #d6bd7f; padding: 8px 0; }
+.item-list b { display: block; }
+.item-list small { color: #5b4423; line-height: 1.5; text-wrap: pretty; }
+.empty-copy { color: #5b4423; }
+.place-phases { margin: 10px 0 0; padding: 0; list-style: none; line-height: 1.7; }
+.item-name { display: inline-block; }
+
+.world-lesson { min-height: 100svh; padding: clamp(18px, 4vw, 54px); background: radial-gradient(circle at 50% 0, #405675, #182637 70%); color: #f7e9c7; font-family: 'Noto Sans JP', sans-serif; }
+.world-lesson > header, .lesson-card, .world-lesson > footer { max-width: 850px; margin-right: auto; margin-left: auto; }
+.world-lesson header > button { display: block; margin-bottom: 14px; }
+.world-lesson header p { margin: 0; color: #f3cf7f; font-size: 12px; letter-spacing: .18em; }
+.world-lesson h1 { margin: 10px 0 0; font: clamp(31px, 5vw, 52px) Marcellus, 'Noto Sans JP', serif; }
+.world-lesson header > span { color: #d5cfb8; }
+.lesson-meter { height: 9px; margin: 22px 0 20px; }
+.lesson-card { display: grid; gap: 15px; }
+.lesson-card article { scroll-margin-top: 24px; padding: 19px 22px; border-left: 7px solid #9a8765; border-radius: 8px; background: #f5e6bf; color: #30251d; }
+.lesson-card article.current { border-left-color: #e9b44c; box-shadow: 0 0 0 2px #e9b44c88; }
+.lesson-card article.upcoming { background: #e4d8b6; color: #4a4234; }
+.phase-locked { margin: 8px 0 0; color: #4a4234; }
+.phase-complete { margin-top: 18px; text-align: center; }
+.lesson-card article p { line-height: 1.9; font-size: 15px; }
+.lesson-card h2 { margin: 3px 0; }
+.lesson-card strong { font-size: 14px; }
+.lesson-card em { color: #2c6a42; font-weight: 900; }
+.lesson-card h3 { margin: 16px 0 0; color: #5b4423; font-size: 15px; }
+.phase-pending { color: #5b4423; }
+.phase-questions, .phase-training { margin-top: 16px; border-radius: 6px; padding: 4px 14px; background: #fffaea; }
+.phase-questions ul { margin: 8px 0; padding-left: 1.2em; line-height: 1.9; }
+.phase-training p { margin: 6px 0; color: #5b4423; }
+.message-screen > button { margin-top: 8px; }
+.world-lesson footer { padding: 23px; text-align: center; }
+.world-certificate { width: min(480px, 90vw); padding: 34px; border: 4px solid #d8ad58; border-radius: 10px; background: #f5e6bf; color: #30251d; text-align: center; }
+.world-certificate h2 { font-family: Marcellus, 'Noto Sans JP', serif; font-size: 28px; text-wrap: balance; }
+.world-certificate p { word-break: auto-phrase; text-wrap: pretty; }
+.item-keyword { color: #5b4423; font-style: italic; }
+.item-equipment { font-weight: 800; }
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .world-page { --world-header-height: 56px; }
+  .world-header { gap: 7px; padding: 5px 9px; }
+  .world-header p { display: none; }
+  .world-header h1 { font-size: 17px; }
+  .world-header > button { padding: 6px 8px; font-size: 12px; }
+  .world-progress { min-width: 76px; }
+  .world-map-scroll { cursor: auto; }
+  .items-panel-body { grid-template-columns: 1fr; }
+  .avatar-art { max-width: 160px; }
+  .world-page .map-destination { width: min(164px, 44vw); min-height: 50px; font-size: 12px; }
+  .map-controls { right: 8px; bottom: 8px; }
+  .world-lesson { padding: 18px 13px; }
+  .lesson-card article { padding: 15px; }
+  .lesson-card article p { font-size: 14px; }
+  .world-certificate { padding: 24px 18px; }
+  .world-certificate h2 { font-size: clamp(20px, 6vw, 28px); }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  /* 横向きスマホは縮めず、地図の中だけをスクロールして目的地の間隔を保つ。 */
+  .world-canvas.wide { width: calc(max(2350px, 289vw) * var(--map-zoom)); }
+  .world-dialog { max-height: 96svh; }
+  .world-dialog-card { padding: 16px; }
+  .items-panel-body { grid-template-columns: 140px 1fr; }
+  .avatar-art { max-width: 140px; }
+  /* 地図の高さが低いので、操作ボタンは右上、次の目的地の案内は左下へ寄せて、目的地のラベルと重ねない */
+  .map-controls { top: 8px; right: 8px; bottom: auto; }
+  .place-index > div { top: calc(100% + 8px); bottom: auto; max-height: calc(100svh - 140px); }
+  .map-notices { top: auto; bottom: 8px; left: 8px; flex-direction: column-reverse; max-width: calc(100% - 278px); }
+  .next-destination { padding: 6px 10px; }
+  .next-destination p, .map-notices .notice { font-size: 12px; }
+  .world-dialog-card.items-panel { padding: 0 0 12px; }
+  .items-panel-head { padding: 4px 8px 4px 16px; }
+  .items-panel-head h2 { font-size: 22px; }
+  .items-panel-body { padding: 12px 16px 0; }
+  .world-certificate { padding: 14px 16px; }
+  .world-certificate h2 { margin: 4px 0; font-size: 20px; }
+  .world-certificate p { margin: 6px 0; line-height: 1.5; }
+  .world-certificate .dialog-action { margin-top: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; animation: none !important; }
+  .chimney-smoke-preview image { opacity: .72; }
+  .chimney-smoke-preview image + image { display: none; }
+}

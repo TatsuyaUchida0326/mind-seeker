@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MIND SEEKER — ワールドマップ</title>
+  <style>
+    :root { color: #2c241b; font-family: ui-rounded, "Hiragino Maru Gothic ProN", system-ui, sans-serif; background:#17243a; }
+    * { box-sizing:border-box; } body { margin:0; min-height:100vh; background:radial-gradient(circle at 50% -20%,#405a81,#17243a 57%); }
+    header { height:64px; padding:0 28px; display:flex; align-items:center; justify-content:space-between; color:#f5e6bf; }
+    .brand { font-family:Georgia,serif; font-weight:700; letter-spacing:.15em; } .brand small{display:block;font:600 10px system-ui;letter-spacing:.24em;color:#d9c78f}
+    .tools { display:flex; gap:8px; } .tools button { border:1px solid #d9c78f88; background:#243654; color:#f5e6bf; padding:9px 12px;border-radius:9px; }
+    main { min-height:calc(100vh - 64px); padding:0 24px 24px; }
+    .map { position:relative; overflow:hidden; min-height:720px; border:2px solid #dfc58b; border-radius:24px; background:#283e48; box-shadow:0 18px 46px #0c1424aa; }
+    svg { width:100%; height:100%; position:absolute; inset:0; } .sheet { position:absolute; top:28px; right:28px; width:330px; padding:24px; background:#f5e6bf; border:2px solid #c5984e; border-radius:18px; box-shadow:0 12px 24px #24365466; }
+    .eyebrow { color:#7a5a2e; letter-spacing:.12em; font-size:11px; font-weight:700; }.sheet h1 { margin:5px 0 11px; font:700 26px Georgia,serif; }.sheet p { font-size:14px; line-height:1.7; }.progress { margin:18px 0; height:8px; border-radius:99px; background:#ddca98; overflow:hidden; }.progress span{display:block;width:0%;height:100%;background:#5d966b}.sheet button { border:0; width:100%; border-radius:10px; padding:13px;background:#a56a31;color:white;font-weight:700; }
+    .legend { position:absolute; bottom:22px; left:24px; display:flex; gap:12px; padding:10px 14px; border-radius:12px;background:#f5e6bfdd;font-size:12px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}.gold{background:#e9b44c}.green{background:#5d966b}.gray{background:#8a826f}
+    @media(max-width:600px) { header{height:56px;padding:0 14px}.tools button:last-child{display:none}main{padding:0 0 16px}.map{border-radius:0;min-height:760px;border-width:1px}.sheet{top:auto;bottom:12px;left:12px;right:12px;width:auto;padding:17px}.sheet h1{font-size:21px}.legend{bottom:205px;left:12px;font-size:11px} }
+  </style>
+</head>
+<body>
+  <header><div class="brand">MIND SEEKER<small>LEARNING JOURNEY</small></div><div class="tools"><button>⌘ 現在地へ</button><button>能力と装備</button></div></header>
+  <main><section class="map" aria-label="ワールドマップ モックアップ">
+    <svg viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><filter id="shadow"><feDropShadow dx="0" dy="14" stdDeviation="8" flood-opacity=".28"/></filter><pattern id="water" width="52" height="26" patternUnits="userSpaceOnUse"><path d="M0 13q13-9 26 0t26 0" fill="none" stroke="#a6d6d6" stroke-width="3" opacity=".45"/></pattern></defs>
+      <rect width="1920" height="1080" fill="#6e9c58"/><path d="M720 0H1920V560L1650 660l-360-120-250-270z" fill="#3e6e4f"/><path d="M930 280l500-150 490 180v420l-430 130-410-160z" fill="#788594"/><path d="M0 300l590-40 350 190-240 430H0z" fill="#a76b42"/><path d="M0 0h640l170 260-220 260L0 470z" fill="#dcecf4"/><path d="M1150 0h770v410l-280 120-260-110z" fill="#4d91a3"/><path d="M1150 0h770v410l-280 120-260-110z" fill="url(#water)"/>
+      <g opacity=".45" fill="#284b40"><circle cx="770" cy="660" r="45"/><circle cx="830" cy="615" r="36"/><circle cx="1320" cy="750" r="55"/><circle cx="1420" cy="690" r="38"/></g>
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M220 780C390 760 470 760 610 760S870 805 1030 790s260-80 430-50c150 25 80-110 50-270S1260 420 1010 455s-390-10-540-25c-130-15-95-160-50-245s330-30 530-15 320 20 500 25" stroke="#714d2a" stroke-width="38"/><path d="M220 780C390 760 470 760 610 760S870 805 1030 790s260-80 430-50c150 25 80-110 50-270S1260 420 1010 455s-390-10-540-25c-130-15-95-160-50-245s330-30 530-15 320 20 500 25" stroke="#e8c277" stroke-width="25"/></g>
+      <g filter="url(#shadow)" fill="#f5e6bf" stroke="#563e28" stroke-width="7"><path d="M180 780l40-32 40 32-40 32z"/><path d="M570 760l40-32 40 32-40 32z"/><path d="M990 790l40-32 40 32-40 32z"/><path d="M1420 740l40-32 40 32-40 32z"/><path d="M1470 470l40-32 40 32-40 32z"/><path d="M970 455l40-32 40 32-40 32z"/><path d="M430 430l40-32 40 32-40 32z"/><path d="M380 185l40-32 40 32-40 32z"/><path d="M910 170l40-32 40 32-40 32z"/><path d="M1410 195l40-32 40 32-40 32z"/></g>
+      <g font-size="25" font-weight="700" text-anchor="middle" fill="#2c241b"><text x="220" y="786">01</text><text x="610" y="766">02</text><text x="1030" y="796">03</text><text x="1460" y="746">04</text><text x="1510" y="476">05</text><text x="1010" y="461">06</text><text x="470" y="436">07</text><text x="420" y="191">08</text><text x="950" y="176">09</text><text x="1450" y="201">10</text></g>
+      <g fill="#f5e6bf" stroke="#7e5b34" stroke-width="3" font-size="20" font-weight="700"><g transform="translate(125 690)"><rect width="190" height="44" rx="11"/><text x="95" y="28" text-anchor="middle" fill="#2c241b">第1章　主体的に選ぶ</text></g><g transform="translate(505 810)"><rect width="210" height="44" rx="11"/><text x="105" y="28" text-anchor="middle" fill="#2c241b">第2章　目的を定める</text></g><g transform="translate(925 700)"><rect width="210" height="44" rx="11"/><text x="105" y="28" text-anchor="middle" fill="#2c241b">第3章　優先順位を決める</text></g><g transform="translate(1330 810)"><rect width="250" height="44" rx="11"/><text x="125" y="28" text-anchor="middle" fill="#2c241b">第4章　納得できる案を探す</text></g><g transform="translate(1400 365)"><rect width="220" height="44" rx="11"/><text x="110" y="28" text-anchor="middle" fill="#2c241b">第5章　理解して伝える</text></g><g transform="translate(895 510)"><rect width="230" height="44" rx="11"/><text x="115" y="28" text-anchor="middle" fill="#2c241b">第6章　違いを活かす</text></g><g transform="translate(350 340)"><rect width="240" height="44" rx="11"/><text x="120" y="28" text-anchor="middle" fill="#2c241b">第7章　自分を整え続ける</text></g><g transform="translate(300 240)"><rect width="240" height="44" rx="11"/><text x="120" y="28" text-anchor="middle" fill="#2c241b">第8章　習慣を組み合わせる</text></g><g transform="translate(820 230)"><rect width="260" height="44" rx="11"/><text x="130" y="28" text-anchor="middle" fill="#2c241b">第9章　人との課題に活かす</text></g><g transform="translate(1310 90)"><rect width="280" height="44" rx="11"/><text x="140" y="28" text-anchor="middle" fill="#2c241b">第10章　次の行動を決める</text></g></g>
+      <circle cx="220" cy="780" r="61" fill="none" stroke="#e9b44c" stroke-width="12"/><path d="M220 704l12 40-12 12-12-12z" fill="#e9b44c"/>
+    </svg>
+    <aside class="sheet"><div class="eyebrow">CURRENT DESTINATION　CHAPTER 01</div><h1>主体的に選ぶ</h1><p>状況に飲み込まれる前に、自分が選べる行動を見つけます。</p><div class="progress"><span></span></div><p class="eyebrow">4つの学び</p><button>学びを始める　→</button></aside>
+    <div class="legend"><span><i class="dot gold"></i>次の学び</span><span><i class="dot green"></i>修了済み</span><span><i class="dot gray"></i>未解放</span></div>
+  </section></main>
+</body>
+</html>

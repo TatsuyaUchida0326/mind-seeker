@@ -1,7 +1,8 @@
 import { stages } from './stages';
+import { legacyProgressStorageKey } from './lessons/legacyLessonIds';
 import { worldLessonsByStage } from './lessons/worldLessons';
 
-export const progressStorageKey = 'mind-seeker-learning-progress-v1';
+export const progressStorageKey = legacyProgressStorageKey;
 
 export interface LearningProgress {
   completedStageIds: string[];

@@ -1,8 +1,8 @@
 """地図素材から「光る道レイヤー」と「街から街への道順」を作る。
 
-入力（src/assets/map/）
-  map-base.png   … 道が光っていない地図
-  map-golden.png … 同じ構図で、道が金色に光っている地図
+入力
+  src/assets/map/map-base.png … 道が光っていない地図
+  artwork/maps/archive/map-golden.png … 同じ構図で、道が金色に光っている地図
   src/stages.ts  … 街の座標（SVG viewBox 1920x1080 上）
 
 出力
@@ -24,7 +24,8 @@ from scipy import ndimage
 from skimage.graph import route_through_array
 
 ROOT = Path(__file__).resolve().parent.parent
-MAP_DIR = ROOT / 'src' / 'assets' / 'map'
+BASE_MAP = ROOT / 'src' / 'assets' / 'map' / 'map-base.png'
+GOLDEN_MAP = ROOT / 'artwork' / 'maps' / 'archive' / 'map-golden.png'
 SVG_WIDTH, SVG_HEIGHT = 1920, 1080
 
 # 金色版で「金色かつ明るくなった」画素を道とみなす
@@ -38,8 +39,8 @@ COST_ON_ROAD, COST_OFF_ROAD = 1.0, 40.0
 SIMPLIFY_TOLERANCE_SVG = 6.0  # 経由点を間引く許容誤差（SVG 座標）
 
 
-def load_rgb(name: str) -> np.ndarray:
-    return np.asarray(Image.open(MAP_DIR / name).convert('RGB')).astype(np.int16)
+def load_rgb(path: Path) -> np.ndarray:
+    return np.asarray(Image.open(path).convert('RGB')).astype(np.int16)
 
 
 def load_stages() -> list[tuple[str, float, float]]:
@@ -87,7 +88,7 @@ def find_route(cost: np.ndarray, image_size: tuple[int, int], start_svg, end_svg
 
 
 def main() -> None:
-    base, golden = load_rgb('map-base.png'), load_rgb('map-golden.png')
+    base, golden = load_rgb(BASE_MAP), load_rgb(GOLDEN_MAP)
     if base.shape != golden.shape:
         raise SystemExit(f'2枚の地図のサイズが違う: {base.shape} / {golden.shape}')
     road = find_road_pixels(base, golden)

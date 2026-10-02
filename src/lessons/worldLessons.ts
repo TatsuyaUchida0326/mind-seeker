@@ -1,12 +1,13 @@
 import type { LearningUnit } from '../learning';
 import type { StageId } from '../stages';
+import { legacyLessonIdsOf } from './legacyLessonIds';
 
 type LessonDraft = Pick<LearningUnit, 'title' | 'summary' | 'body'>;
 
 function createStageLessons(stageId: string, drafts: [LessonDraft, LessonDraft, LessonDraft]): LearningUnit[] {
-  const lessonParts = ['foundation', 'practice', 'reflection'] as const;
+  const lessonIds = legacyLessonIdsOf(stageId);
   return drafts.map((draft, index) => ({
-    id: `${stageId}-${lessonParts[index]}`,
+    id: lessonIds[index],
     ...draft,
   }));
 }

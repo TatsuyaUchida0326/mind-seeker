@@ -55,7 +55,7 @@
 
 /* 巻物背景のラベル枠 */
 .label-frame {
-  background: url('./assets/scroll-label.png') no-repeat center center;
+  background: url('./assets/ui/scroll-label.png') no-repeat center center;
   background-size: cover;
   width: 100%;
   height: 100%;
@@ -416,6 +416,9 @@
   align-items: center;
   gap: 6px;
 }
+
+/* オープニングは暗い動画・画像の上なので、フォーカスの枠は明るい色にする */
+.video-fullscreen { --focus-ring: var(--focus-ring-on-dark); }
 
 .rpg-skip-button:hover {
   background: linear-gradient(to bottom, #3d231a 0%, #251510 100%);
