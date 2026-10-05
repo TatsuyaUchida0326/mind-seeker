@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MIND SEEKER — 次の街への導線モック</title>
+  <style>
+    :root { color-scheme: dark; font-family: "Noto Sans JP", system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #17243a; color: #f9edca; }
+    header { display: flex; align-items: center; gap: 18px; min-height: 64px; padding: 8px clamp(16px, 3vw, 42px); border-bottom: 3px solid #d8ad58; background: linear-gradient(90deg, #242b38, #3a3032); }
+    header p { margin: 0; color: #e9b44c; font-size: 10px; letter-spacing: .16em; }
+    h1 { margin: 0; font-family: Georgia, serif; font-size: 24px; letter-spacing: .08em; }
+    .state { margin-left: auto; color: #f9edca; font-size: 13px; }
+    .state b { color: #e9b44c; font-size: 20px; }
+    .controls { display: flex; gap: 8px; }
+    button { min-height: 44px; border: 1px solid #e8c87c; border-radius: 7px; padding: 9px 13px; background: #f5e6bf; color: #34281d; font: inherit; font-weight: 800; cursor: pointer; }
+    main { padding: clamp(14px, 3vw, 34px); }
+    .map-frame { position: relative; max-width: 1440px; margin: auto; overflow: hidden; border: 2px solid #d8ad58; box-shadow: 0 12px 36px #0009; background: #17243a; }
+    .map { position: relative; aspect-ratio: 1920 / 819; background: url('./map-overview-detailed-v2.png') center / 100% 100% no-repeat; }
+    .guide { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+    .road-halo { fill: none; stroke: #ffdb7a; stroke-width: 11; opacity: .34; filter: blur(5px); }
+    .road-core { fill: none; stroke: #fff0a3; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1350; stroke-dashoffset: 1350; animation: journey-line 2.4s ease-out forwards; }
+    .traveller { fill: #fff8c8; filter: drop-shadow(0 0 6px #ffd766) drop-shadow(0 0 15px #f1a92c); animation: traveller 2.4s ease-out forwards; }
+    @keyframes journey-line { to { stroke-dashoffset: 0; } }
+    @keyframes traveller { 0% { offset-distance: 0%; opacity: 0; } 7% { opacity: 1; } 100% { offset-distance: 100%; opacity: 1; } }
+    .label { position: absolute; z-index: 2; min-height: 44px; transform: translate(-50%, -50%); border: 1px solid #e8c87c; border-radius: 7px; padding: 7px 11px; background: rgb(34 27 18 / .76); color: #fff8dc; box-shadow: 0 2px 8px #0008; font-size: clamp(11px, 1.1vw, 14px); font-weight: 900; line-height: 1.25; letter-spacing: .04em; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+    .label.done::before { content: '✓ '; color: #a8dc9a; }
+    .label.current { opacity: 0; pointer-events: none; border-color: #f6d26c; box-shadow: 0 2px 8px #0008, 0 0 14px #ffe48a; }
+    .target { position: absolute; z-index: 3; left: 50%; top: -25px; color: #f3c95f; font-size: 19px; line-height: 1; text-shadow: 0 1px 4px #0009; animation: target-bounce 1.6s ease-in-out infinite; }
+    @keyframes target-bounce { 50% { transform: translateY(-10px); } }
+    .arrived .road-core { animation: none; stroke-dashoffset: 0; }
+    .arrived .traveller { animation: none; opacity: 1; offset-distance: 100%; }
+    .arrived .label.current { opacity: 1; pointer-events: auto; animation: label-in 240ms ease-out both; }
+    .locked { display: none; }
+    @keyframes label-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.86); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+    .caption { max-width: 1440px; margin: 14px auto 0; color: #d5cfb8; font-size: 14px; line-height: 1.7; }
+    .caption b { color: #f3cf7f; }
+    @media (prefers-reduced-motion: reduce) { .road-core, .traveller, .target, .arrived .label.current { animation: none; } .road-core { stroke-dashoffset: 0; } .traveller { opacity: 1; offset-distance: 100%; } }
+    @media (max-width: 600px) { header { min-height: 56px; padding: 5px 9px; gap: 8px; } header p { display: none; } h1 { font-size: 17px; } .state { display: none; } main { padding: 8px; } .map-frame { overflow-x: auto; } .map { width: 920px; } .controls button { padding: 6px 9px; font-size: 12px; } .caption { padding: 0 8px; font-size: 13px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div><p>LEARNING ADVENTURE</p><h1>MIND SEEKER</h1></div>
+    <div class="state"><b>3</b> / 30 phases</div>
+    <div class="controls"><button id="toggle">到着状態を確認</button></div>
+  </header>
+  <main>
+    <section class="map-frame" aria-label="始まりの町から風車の村への案内演出モック">
+      <div class="map" id="map">
+        <svg class="guide" viewBox="0 0 1920 819" aria-hidden="true">
+          <path class="road-halo" d="M 192 207 C 332 253, 402 257, 504 236 S 720 186, 850 196 S 1002 177, 1068 126" />
+          <path id="road" class="road-core" d="M 192 207 C 332 253, 402 257, 504 236 S 720 186, 850 196 S 1002 177, 1068 126" />
+          <circle class="traveller" r="7"><animateMotion dur="2.4s" fill="freeze" path="M 192 207 C 332 253, 402 257, 504 236 S 720 186, 850 196 S 1002 177, 1068 126" /></circle>
+        </svg>
+        <button class="label done" style="left:10.2%;top:39.8%">始まりの町</button>
+        <button class="label current" style="left:55.7%;top:33%"><span class="target">▼</span>風車の村</button>
+        <button class="label locked" style="left:89.3%;top:45%">川辺の里</button>
+        <button class="label locked" style="left:88.2%;top:88.8%">言葉の宿場</button>
+      </div>
+    </section>
+    <p class="caption"><b>名札は建物の外に置き、文字は不透明のまま保持します。</b> 現在地だけの金色の▼がゆっくり跳ね、道の光が到着してから次の街の名札が現れます。実装ではスマホでこの光を追って横スクロールします。</p>
+  </main>
+  <script>
+    const map = document.getElementById('map');
+    const toggle = document.getElementById('toggle');
+    toggle.addEventListener('click', () => {
+      const arrived = map.classList.toggle('arrived');
+      toggle.textContent = arrived ? '進行中を確認' : '到着状態を確認';
+    });
+  </script>
+</body>
+</html>

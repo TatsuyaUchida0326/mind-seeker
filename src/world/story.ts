@@ -257,10 +257,10 @@ interface PlaceRow {
 }
 
 const placeRows: PlaceRow[] = [
-  { chapterNumber: 1, kind: 'town', name: '始まりの町', firstPhase: 1, lastPhase: 3, position: { x: 485, y: 480 } },
-  { chapterNumber: 1, kind: 'town', name: '風車の村', firstPhase: 4, lastPhase: 6, position: { x: 2320, y: 460 } },
-  { chapterNumber: 1, kind: 'town', name: '川辺の里', firstPhase: 7, lastPhase: 9, position: { x: 4200, y: 705 } },
-  { chapterNumber: 1, kind: 'finale', name: '言葉の宿場', firstPhase: 10, lastPhase: 10, position: { x: 4180, y: 1640 } },
+  { chapterNumber: 1, kind: 'town', name: '始まりの町', firstPhase: 1, lastPhase: 3, position: { x: 518, y: 740 } },
+  { chapterNumber: 1, kind: 'town', name: '風車の村', firstPhase: 4, lastPhase: 6, position: { x: 2589, y: 740 } },
+  { chapterNumber: 1, kind: 'town', name: '川辺の里', firstPhase: 7, lastPhase: 9, position: { x: 4209, y: 822 } },
+  { chapterNumber: 1, kind: 'finale', name: '言葉の宿場', firstPhase: 10, lastPhase: 10, position: { x: 4127, y: 1573 } },
   // TODO: 第2章・第3章の名前は仮。地図を作るときに物語とあわせて決め、座標を入れる
   { chapterNumber: 2, kind: 'town', name: '道しるべの丘', firstPhase: 11, lastPhase: 13, position: null },
   { chapterNumber: 2, kind: 'town', name: '先導者の森', firstPhase: 14, lastPhase: 16, position: null },

@@ -52,20 +52,34 @@
   65% { opacity: .85; }
   100% { opacity: 0; transform: translate(1px, -18px) scale(1.06); }
 }
-.world-labels { position: absolute; inset: 0; pointer-events: none; }
-.world-page .map-destination { position: absolute; left: var(--map-x); top: var(--map-y); width: 176px; min-height: 44px; transform: translate(-50%, 85%); border: 2px solid #e5c77c; border-radius: 8px; padding: 5px 8px; background: #f5e6bf; color: #30251d; box-shadow: 0 4px 0 #6c5536; font-size: 13px; font-weight: 900; line-height: 1.3; pointer-events: auto; }
+.world-labels { position: absolute; z-index: 3; inset: 0; pointer-events: none; }
+.world-page .map-destination { position: absolute; left: var(--map-x); top: var(--map-y); width: 176px; min-height: 44px; transform: translate(-50%, 85%); border: 1px solid #f4d889a8; border-radius: 8px; padding: 5px 8px; background: #182230b8; color: #fff7de; box-shadow: 0 3px 0 #18223099; font-size: 13px; font-weight: 900; line-height: 1.3; pointer-events: auto; }
 .map-destination::before { position: absolute; inset: -95px 0 -16px; content: ''; }
-.map-destination span { display: block; color: #6f5a30; font-size: 12px; letter-spacing: .08em; }
-.map-destination span b { display: inline-block; min-width: 15px; color: #564522; font-size: 12px; letter-spacing: 0; }
+.map-destination span { display: block; color: #fff7de; font-size: 12px; letter-spacing: .08em; }
+.map-destination span b { display: inline-block; min-width: 15px; color: #f6d26c; font-size: 12px; letter-spacing: 0; }
 .map-destination .map-destination-theme { color: inherit; font-size: inherit; letter-spacing: 0; }
 /* 全体表示では、フェーズの行だけを隠して「記号＋名前」を残す */
 .world-canvas.overview .map-destination { width: auto; max-width: 160px; min-height: 44px; transform: translate(-50%, -50%); padding: 6px 10px; white-space: nowrap; }
 .world-canvas.overview .map-destination::before { inset: -5px; }
 .world-canvas.overview .map-destination-detail { display: none; }
-.map-destination.current { border-color: #f6d26c; background: #fff1bd; box-shadow: 0 4px 0 #6c5536, 0 0 14px #ffe48a; }
+.map-destination.current { border-color: #f6d26c; box-shadow: 0 3px 0 #18223099, 0 0 14px #ffe48a; }
+.map-destination.current .map-destination-theme b { animation: map-target-bounce 1.25s ease-in-out infinite; }
+.map-destination.journey-arrived { animation: map-destination-arrive .35s ease-out both; }
+.world-canvas.overview .map-destination.journey-arrived { animation-name: map-destination-arrive-overview; }
+.map-destination.journey-hidden, .map-destination.locked { display: none; }
 .map-destination.done { border-color: #8fbc83; }
 .map-destination.locked { border-color: #706b5d; background: #bab39e; color: #3f3b34; }
 .map-destination.locked span { color: #4a4234; }
+@keyframes map-target-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes map-destination-arrive { from { opacity: 0; transform: translate(-50%, 85%) scale(.88); } to { opacity: 1; transform: translate(-50%, 85%) scale(1); } }
+@keyframes map-destination-arrive-overview { from { opacity: 0; transform: translate(-50%, -50%) scale(.88); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.map-journey-line { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.map-journey-line polyline { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.map-journey-glow { stroke: #ffd96385; stroke-width: 35; filter: blur(12px); stroke-dasharray: 1; stroke-dashoffset: 1; animation: map-journey-draw 2.4s linear both; }
+.map-journey-stroke { stroke: #ffe38a; stroke-width: 12; stroke-dasharray: 1; stroke-dashoffset: 1; animation: map-journey-draw 2.4s linear both; }
+.map-journey-point { fill: #fff4b0; stroke: #e6aa35; stroke-width: 8; filter: drop-shadow(0 0 12px #ffe26a); }
+@keyframes map-journey-draw { from { stroke-dashoffset: 1; opacity: .1; } 15% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+.journey-skip { position: absolute; z-index: 7; right: 16px; top: 16px; min-height: 44px; border: 1px solid #e8c87c; border-radius: 7px; padding: 8px 12px; background: #182230d9; color: #fff7de; font-weight: 800; }
 /* 地図ラベルのフォーカス枠は、地図の色に左右されないよう紺の線を黄色の帯で縁取る。現在地は光彩も残す */
 .world-page .world-canvas .map-destination:focus-visible { outline: 3px solid var(--focus-ring-on-parchment); outline-offset: 2px; box-shadow: 0 4px 0 #6c5536, 0 0 0 7px var(--focus-ring-on-dark); }
 .world-page .world-canvas .map-destination.current:focus-visible { box-shadow: 0 4px 0 #6c5536, 0 0 0 7px var(--focus-ring-on-dark), 0 0 14px #ffe48a; }

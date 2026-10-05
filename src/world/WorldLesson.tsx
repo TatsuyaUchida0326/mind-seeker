@@ -27,7 +27,7 @@ type AfterAcquire = 'samePlace' | 'nextPlace' | 'finished';
 
 const proceedLabels: Record<AfterAcquire, string> = {
   samePlace: '次のフェーズへ',
-  nextPlace: '次の目的地へ →',
+  nextPlace: '次の街へ →',
   finished: '世界地図へ戻る',
 };
 
@@ -150,7 +150,7 @@ export default function WorldLesson({ progress, onSaveProgress, notice, onDismis
       setAcquiredPhase(null);
       return;
     }
-    navigate('/', { state: followingPlace ? { openPlaceId: followingPlace.id } : null });
+    navigate('/', { state: followingPlace ? { journeyFromId: place.id, journeyToId: followingPlace.id } : null });
   };
 
   return (
@@ -192,7 +192,7 @@ export default function WorldLesson({ progress, onSaveProgress, notice, onDismis
       <dialog
         ref={acquiredDialogRef}
         className="world-certificate"
-        onCancel={(event) => { event.preventDefault(); proceed(); }}
+        onCancel={(event) => { event.preventDefault(); setAcquiredPhase(null); navigate('/'); }}
         aria-labelledby="acquired-title"
       >
         {acquiredPhase && (
