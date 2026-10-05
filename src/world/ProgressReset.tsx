@@ -36,8 +36,8 @@ export function ProgressReset({ onReset }: ProgressResetProps) {
         <>
           <p id="progress-reset-warning">修了したフェーズと持ち物をすべて消し、旅立ち前の姿に戻します。元には戻せません。</p>
           <div className="progress-reset-actions">
-            <button className="progress-reset-confirm" aria-describedby="progress-reset-warning" onClick={() => goToStep(onReset() ? 'done' : 'failed')}>すべて消して最初に戻す</button>
             <button ref={cancelButtonRef} aria-describedby="progress-reset-warning" onClick={() => goToStep('idle')}>やめる</button>
+            <button className="progress-reset-confirm" aria-describedby="progress-reset-warning" onClick={() => goToStep(onReset() ? 'done' : 'failed')}>すべて消して最初に戻す</button>
           </div>
         </>
       ) : (

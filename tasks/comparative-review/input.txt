@@ -1,0 +1,1083 @@
+既存React/TypeScriptアプリの独立コードレビュー。日本語で回答。コード修正・ツール実行・他のレビュー結果の参照は禁止。以下の固定コードだけをレビューする。
+対象：「最初からやり直す」機能。6ファイルのリセット、保存、別タブ同期、持ち物ダイアログ、該当CSSだけ。他機能をレビュー対象に広げない。
+仕様：公開サイトのテスト運転用。持ち物パネル内のボタンから警告と確認を必ず挟む。やめるで無変更。確定すると修了フェーズと持ち物を消し初期姿・現在地へ戻る。v5で保存し旧36街の別キーは消さず再換算しない。保存失敗や別タブとの競合では成功表示をせず理由を通知する。パネルを閉じて開くと確認状態を残さない。初回は閉じるボタンへ、確認中はやめるへ、結果は結果文へフォーカス。設定falseなら機能を出さない。
+観点：実行時の正確性、状態・保存整合性、設計、読みやすさ、キーボード・フォーカス・失敗通知。一般論だけで不具合を断定しない。静的コードから判断できない見た目や読み上げは未検証とする。
+出力：指摘ごとに重大度P1/P2/P3、ファイルと行番号、発生条件、影響、根拠、最小修正案、確信度。指摘なしも許容。最後に確認できた良い点と未検証点。最大5件程度、1500字程度。ブラウザ実測は今回はしない。過去のレビュー結果は提供しない。
+
+### src/world/ProgressReset.tsx
+1: import { useEffect, useRef, useState } from 'react';
+2: 
+3: type ResetStep = 'idle' | 'confirming' | 'done' | 'failed';
+4: 
+5: interface ProgressResetProps {
+6:   // 保存できたら true を返す
+7:   onReset: () => boolean;
+8: }
+9: 
+10: // テスト運転用。修了したフェーズをまとめて消し、主人公を最初の姿に戻す
+11: export function ProgressReset({ onReset }: ProgressResetProps) {
+12:   const [step, setStep] = useState<ResetStep>('idle');
+13:   const startButtonRef = useRef<HTMLButtonElement>(null);
+14:   const cancelButtonRef = useRef<HTMLButtonElement>(null);
+15:   const resultRef = useRef<HTMLParagraphElement>(null);
+16:   const hasChangedStepRef = useRef(false);
+17: 
+18:   // 表示が切り替わったら、次に操作するところへフォーカスを移す（開いた直後は動かさない）。
+19:   // 結果の文はフォーカスで読み上げられるため、role="status" などは重ねない
+20:   useEffect(() => {
+21:     if (!hasChangedStepRef.current) return;
+22:     if (step === 'confirming') cancelButtonRef.current?.focus();
+23:     else if (step === 'idle') startButtonRef.current?.focus();
+24:     else resultRef.current?.focus();
+25:   }, [step]);
+26: 
+27:   const goToStep = (next: ResetStep) => {
+28:     hasChangedStepRef.current = true;
+29:     setStep(next);
+30:   };
+31: 
+32:   return (
+33:     <section className="progress-reset" aria-labelledby="progress-reset-title">
+34:       <h3 id="progress-reset-title">テスト運転用</h3>
+35:       {step === 'confirming' ? (
+36:         <>
+37:           <p id="progress-reset-warning">修了したフェーズと持ち物をすべて消し、旅立ち前の姿に戻します。元には戻せません。</p>
+38:           <div className="progress-reset-actions">
+39:             <button className="progress-reset-confirm" aria-describedby="progress-reset-warning" onClick={() => goToStep(onReset() ? 'done' : 'failed')}>すべて消して最初に戻す</button>
+40:             <button ref={cancelButtonRef} aria-describedby="progress-reset-warning" onClick={() => goToStep('idle')}>やめる</button>
+41:           </div>
+42:         </>
+43:       ) : (
+44:         <>
+45:           {step === 'done' && <p ref={resultRef} tabIndex={-1}>最初の状態に戻しました。</p>}
+46:           {step === 'failed' && <p ref={resultRef} tabIndex={-1}>最初に戻せませんでした。パネルを閉じると、地図に理由が出ています。</p>}
+47:           <button ref={startButtonRef} onClick={() => goToStep('confirming')}>最初からやり直す</button>
+48:         </>
+49:       )}
+50:     </section>
+51:   );
+52: }
+
+### src/world/progress.ts
+1: import { legacyLessonIdsOf, legacyProgressStorageKey } from '../lessons/legacyLessonIds';
+2: import { stages } from '../stages';
+3: import { phases } from './story';
+4: import type { Item, Phase, Place } from './story';
+5: 
+6: const schemaVersion = 5;
+7: const worldProgressKey = `mind-seeker-progress-v${schemaVersion}`;
+8: 
+9: export const saveErrorMessage = '進捗を保存できません。空き容量を確認してから、もう一度お試しください。';
+10: export const conflictMessage = '別の画面で学習が進んでいたため、最新の記録を読み込みました。';
+11: export const migrationNoticeMessage = '旧版の修了記録を、新しい世界地図へ引き継ぎました。';
+12: const legacyReadError = '旧版の記録を読み込めません。既存の記録は保護されています。';
+13: const unavailableError = 'このブラウザでは保存領域を利用できません。';
+14: export const unreadableMessage = '保存データを読み込めません。既存の記録は保護されています。';
+15: 
+16: export interface WorldProgress {
+17:   schemaVersion: typeof schemaVersion;
+18:   // フェーズは順番にしか進めないため、常に phases の先頭からの並びになる
+19:   completedPhaseIds: string[];
+20:   // 旧36街版から引き継いだフェーズ数と、そのお知らせを利用者が閉じたか
+21:   migration: { legacyPhaseCount: number; noticeDismissed: boolean };
+22: }
+23: 
+24: export type LoadResult = { ok: true; progress: WorldProgress } | { ok: false; error: string };
+25: 
+26: export type PlaceState = 'done' | 'current' | 'locked';
+27: 
+28: // 装備は equipment を必ず持つアイテム
+29: export type EquipmentItem = Item & { equipment: NonNullable<Item['equipment']> };
+30: 
+31: // 保存済みの記録を読み直した結果。「無い」と「読めない」を分け、読めない記録は上書きしない
+32: export type LatestRead = { kind: 'absent' } | { kind: 'unreadable' } | { kind: 'ok'; progress: WorldProgress };
+33: 
+34: type StorageRead = { available: true; value: string | null } | { available: false };
+35: 
+36: function readStorage(key: string): StorageRead {
+37:   try {
+38:     return { available: true, value: localStorage.getItem(key) };
+39:   } catch {
+40:     return { available: false };
+41:   }
+42: }
+43: 
+44: function hasOwn(object: object, key: string): boolean {
+45:   return Object.prototype.hasOwnProperty.call(object, key);
+46: }
+47: 
+48: function isPhasePrefix(ids: unknown[]): ids is string[] {
+49:   return ids.length <= phases.length && ids.every((id, index) => id === phases[index].id);
+50: }
+51: 
+52: // 旧36街版は、先頭から続けて修了した街の数を、30フェーズの同じ割合に換算する（切り捨て）
+53: function readLegacyPhaseCount(): { count: number } | { error: string } {
+54:   const read = readStorage(legacyProgressStorageKey);
+55:   if (!read.available) return { error: legacyReadError };
+56:   if (read.value === null) return { count: 0 };
+57:   try {
+58:     const parsed: unknown = JSON.parse(read.value);
+59:     if (!parsed || typeof parsed !== 'object' || !hasOwn(parsed, 'completedLessonIds')) return { error: legacyReadError };
+60:     const lessons = (parsed as { completedLessonIds: unknown }).completedLessonIds;
+61:     if (!Array.isArray(lessons) || lessons.some((value) => typeof value !== 'string')) return { error: legacyReadError };
+62:     const completedLessons = new Set(lessons);
+63:     const isStageCompleted = (stageId: string) => legacyLessonIdsOf(stageId).every((id) => completedLessons.has(id));
+64:     const firstUnfinished = stages.findIndex((stage) => !isStageCompleted(stage.id));
+65:     const completedStageCount = firstUnfinished < 0 ? stages.length : firstUnfinished;
+66:     return { count: Math.floor(completedStageCount * phases.length / stages.length) };
+67:   } catch {
+68:     return { error: legacyReadError };
+69:   }
+70: }
+71: 
+72: // 形が少しでも違う記録は直さずに捨てる（null）。呼び出し側は上書きせずに止める
+73: function parseWorldProgress(value: unknown): WorldProgress | null {
+74:   if (!value || typeof value !== 'object') return null;
+75:   const source = value as Partial<WorldProgress>;
+76:   if (source.schemaVersion !== schemaVersion || !Array.isArray(source.completedPhaseIds) || !isPhasePrefix(source.completedPhaseIds)) return null;
+77:   const migration = source.migration;
+78:   if (!migration || typeof migration !== 'object' || typeof migration.noticeDismissed !== 'boolean') return null;
+79:   const legacyCount = migration.legacyPhaseCount;
+80:   if (!Number.isInteger(legacyCount) || legacyCount < 0 || legacyCount > source.completedPhaseIds.length) return null;
+81:   return {
+82:     schemaVersion,
+83:     completedPhaseIds: source.completedPhaseIds,
+84:     migration: { legacyPhaseCount: legacyCount, noticeDismissed: migration.noticeDismissed },
+85:   };
+86: }
+87: 
+88: function parseStored(raw: string): WorldProgress | null {
+89:   try {
+90:     return parseWorldProgress(JSON.parse(raw));
+91:   } catch {
+92:     return null;
+93:   }
+94: }
+95: 
+96: export function saveWorldProgress(progress: WorldProgress): boolean {
+97:   try {
+98:     localStorage.setItem(worldProgressKey, JSON.stringify(progress));
+99:     return true;
+100:   } catch {
+101:     return false;
+102:   }
+103: }
+104: 
+105: // 記録が無ければ、旧36街版から換算した記録をここで作って保存する。
+106: // 10章版（v2・v3）と開発中の v4 は公開されていないため引き継がない。既存のどの版の記録も書き換えない
+107: export function loadOrCreateWorldProgress(): LoadResult {
+108:   const read = readStorage(worldProgressKey);
+109:   if (!read.available) return { ok: false, error: unavailableError };
+110:   if (read.value !== null) {
+111:     const progress = parseStored(read.value);
+112:     return progress ? { ok: true, progress } : { ok: false, error: unreadableMessage };
+113:   }
+114: 
+115:   const legacy = readLegacyPhaseCount();
+116:   if ('error' in legacy) return { ok: false, error: legacy.error };
+117:   const progress: WorldProgress = {
+118:     schemaVersion,
+119:     completedPhaseIds: phases.slice(0, legacy.count).map((phase) => phase.id),
+120:     migration: { legacyPhaseCount: legacy.count, noticeDismissed: false },
+121:   };
+122:   if (!saveWorldProgress(progress)) return { ok: false, error: saveErrorMessage };
+123:   return { ok: true, progress };
+124: }
+125: 
+126: // 別のタブが書いたかもしれない、保存済みの最新の記録
+127: export function readLatestProgress(): LatestRead {
+128:   const read = readStorage(worldProgressKey);
+129:   if (!read.available) return { kind: 'unreadable' };
+130:   if (read.value === null) return { kind: 'absent' };
+131:   const progress = parseStored(read.value);
+132:   return progress ? { kind: 'ok', progress } : { kind: 'unreadable' };
+133: }
+134: 
+135: export function isStorageEventForProgress(event: StorageEvent): boolean {
+136:   return event.key === worldProgressKey;
+137: }
+138: 
+139: // 修了の並びは常に phases の先頭からなので、数が同じなら中身も同じ
+140: export function isSameProgress(a: WorldProgress, b: WorldProgress): boolean {
+141:   return a.completedPhaseIds.length === b.completedPhaseIds.length
+142:     && a.migration.legacyPhaseCount === b.migration.legacyPhaseCount
+143:     && a.migration.noticeDismissed === b.migration.noticeDismissed;
+144: }
+145: 
+146: export function shouldShowMigrationNotice(progress: WorldProgress): boolean {
+147:   return progress.migration.legacyPhaseCount > 0 && !progress.migration.noticeDismissed;
+148: }
+149: 
+150: export function dismissMigrationNotice(progress: WorldProgress): WorldProgress {
+151:   return { ...progress, migration: { ...progress.migration, noticeDismissed: true } };
+152: }
+153: 
+154: export function completedPhaseCount(progress: WorldProgress): number {
+155:   return progress.completedPhaseIds.length;
+156: }
+157: 
+158: // 今学ぶ（次に修了する）フェーズ。全フェーズを修了していれば undefined
+159: export function currentPhaseOf(progress: WorldProgress): Phase | undefined {
+160:   return phases[completedPhaseCount(progress)];
+161: }
+162: 
+163: // その目的地で今学ぶフェーズ。現在地でなければ null
+164: export function currentPhaseIn(progress: WorldProgress, place: Place): Phase | null {
+165:   const phase = currentPhaseOf(progress);
+166:   return phase && place.phases.includes(phase) ? phase : null;
+167: }
+168: 
+169: export function isPhaseComplete(progress: WorldProgress, phaseId: string): boolean {
+170:   return progress.completedPhaseIds.includes(phaseId);
+171: }
+172: 
+173: export function completedPhaseCountIn(progress: WorldProgress, place: Place): number {
+174:   return place.phases.filter((phase) => isPhaseComplete(progress, phase.id)).length;
+175: }
+176: 
+177: export function completePhase(progress: WorldProgress, phaseId: string): WorldProgress | null {
+178:   if (currentPhaseOf(progress)?.id !== phaseId) return null;
+179:   return { ...progress, completedPhaseIds: [...progress.completedPhaseIds, phaseId] };
+180: }
+181: 
+182: // テスト運転の期間だけ、持ち物パネルに「最初からやり直す」を出す（公開サイトにも出る）
+183: // TODO: テスト運転が終わったら false にする
+184: export const progressResetEnabled = true;
+185: 
+186: // 修了したフェーズと持ち物をすべて消し、旅立ち前の状態に戻す
+187: export function resetWorldProgress(progress: WorldProgress): WorldProgress {
+188:   return { ...progress, completedPhaseIds: [], migration: { legacyPhaseCount: 0, noticeDismissed: true } };
+189: }
+190: 
+191: export function placeState(progress: WorldProgress, place: Place): PlaceState {
+192:   if (completedPhaseCountIn(progress, place) === place.phases.length) return 'done';
+193:   return currentPhaseIn(progress, place) ? 'current' : 'locked';
+194: }
+195: 
+196: function ownedItems(progress: WorldProgress): Item[] {
+197:   return phases.slice(0, completedPhaseCount(progress)).map((phase) => phase.item);
+198: }
+199: 
+200: // 装備は手に入れた時点で身につける。身につけた数が主人公の姿の段階になる
+201: export function wornEquipment(progress: WorldProgress): EquipmentItem[] {
+202:   return ownedItems(progress).filter((item): item is EquipmentItem => item.equipment !== undefined);
+203: }
+204: 
+205: // 装備以外の持ち物
+206: export function ownedKeepsakes(progress: WorldProgress): Item[] {
+207:   return ownedItems(progress).filter((item) => item.equipment === undefined);
+208: }
+
+### src/Root.tsx
+1: import { useCallback, useEffect, useState } from 'react';
+2: import { Route, Routes, useNavigate, useParams } from 'react-router-dom';
+3: import Opening from './Opening';
+4: import './App.css';
+5: import { stages } from './stages';
+6: import { CharacterPreview } from './world/CharacterPreview';
+7: import { MessageScreen } from './world/MessageScreen';
+8: import WorldLesson from './world/WorldLesson';
+9: import type { WorldLessonProps } from './world/WorldLesson';
+10: import WorldMap from './world/WorldMap';
+11: import {
+12:   conflictMessage,
+13:   dismissMigrationNotice,
+14:   isSameProgress,
+15:   isStorageEventForProgress,
+16:   loadOrCreateWorldProgress,
+17:   migrationNoticeMessage,
+18:   progressResetEnabled,
+19:   readLatestProgress,
+20:   resetWorldProgress,
+21:   saveErrorMessage,
+22:   saveWorldProgress,
+23:   shouldShowMigrationNotice,
+24:   unreadableMessage,
+25: } from './world/progress';
+26: import type { WorldProgress } from './world/progress';
+27: import type { Notice } from './world/NoticeRegion';
+28: import './world/world.css';
+29: 
+30: function LegacyLessonGuide() {
+31:   const navigate = useNavigate();
+32:   return (
+33:     <MessageScreen
+34:       title="新しい世界地図へ移りました"
+35:       messages={['以前の街のURLはこのまま開けません。地図から、今の目的地を選んで学習を続けてください。']}
+36:       actionLabel="世界地図を開く"
+37:       onAction={() => navigate('/')}
+38:     />
+39:   );
+40: }
+41: 
+42: function LessonRoute(props: WorldLessonProps) {
+43:   const { placeId = '' } = useParams();
+44:   const isLegacyStage = stages.some((stage) => stage.id === placeId);
+45:   return isLegacyStage ? <LegacyLessonGuide /> : <WorldLesson {...props} />;
+46: }
+47: 
+48: function BlockedScreen({ error }: { error: string }) {
+49:   return (
+50:     <MessageScreen
+51:       title="進捗を安全に開けません"
+52:       messages={[error, '記録を上書きしないため、学習画面は開いていません。保存領域を確認してから再試行してください。']}
+53:       actionLabel="再試行"
+54:       onAction={() => window.location.reload()}
+55:     />
+56:   );
+57: }
+58: 
+59: interface ShownNotice {
+60:   notice: Notice;
+61:   dismiss: () => void;
+62: }
+63: 
+64: function LearningApp({ initialProgress }: { initialProgress: WorldProgress }) {
+65:   const [progress, setProgress] = useState(initialProgress);
+66:   // 保存まわりのお知らせ（保存の失敗・別の画面との食い違い）
+67:   const [storageNotice, setStorageNotice] = useState<Notice | null>(null);
+68: 
+69:   // 別のタブで進んだ記録を取り込み、古い画面の記録で上書きしないようにする
+70:   useEffect(() => {
+71:     const syncFromOtherTab = (event: StorageEvent) => {
+72:       if (!isStorageEventForProgress(event)) return;
+73:       const latest = readLatestProgress();
+74:       if (latest.kind === 'ok') setProgress(latest.progress);
+75:     };
+76:     window.addEventListener('storage', syncFromOtherTab);
+77:     return () => window.removeEventListener('storage', syncFromOtherTab);
+78:   }, []);
+79: 
+80:   const saveProgress = useCallback((next: WorldProgress) => {
+81:     const latest = readLatestProgress();
+82:     if (latest.kind === 'unreadable') {
+83:       setStorageNotice({ kind: 'error', text: unreadableMessage });
+84:       return false;
+85:     }
+86:     if (latest.kind === 'ok' && !isSameProgress(latest.progress, progress)) {
+87:       setProgress(latest.progress);
+88:       setStorageNotice({ kind: 'info', text: conflictMessage });
+89:       return false;
+90:     }
+91:     if (!saveWorldProgress(next)) {
+92:       setStorageNotice({ kind: 'error', text: saveErrorMessage });
+93:       return false;
+94:     }
+95:     setProgress(next);
+96:     setStorageNotice(null);
+97:     return true;
+98:   }, [progress]);
+99: 
+100:   const clearStorageNotice = useCallback(() => setStorageNotice(null), []);
+101: 
+102:   // 地図に出すお知らせと、その閉じ方を1か所で決める。保存まわりのお知らせを先に出し、
+103:   // それを閉じても引き継ぎのお知らせは既読にしない
+104:   const chooseMapNotice = (): ShownNotice | null => {
+105:     if (storageNotice) return { notice: storageNotice, dismiss: clearStorageNotice };
+106:     if (shouldShowMigrationNotice(progress)) {
+107:       return { notice: { kind: 'info', text: migrationNoticeMessage }, dismiss: () => saveProgress(dismissMigrationNotice(progress)) };
+108:     }
+109:     return null;
+110:   };
+111:   const mapNotice = chooseMapNotice();
+112:   // 設定で止めているときは渡さず、ボタンも出さない
+113:   const resetProgress = progressResetEnabled ? () => saveProgress(resetWorldProgress(progress)) : undefined;
+114:   const map = <WorldMap progress={progress} notice={mapNotice?.notice ?? null} onDismissNotice={mapNotice?.dismiss ?? clearStorageNotice} onResetProgress={resetProgress} />;
+115:   const goToMap = () => { window.location.href = import.meta.env.BASE_URL; };
+116: 
+117:   return (
+118:     <Routes>
+119:       <Route path="/opening" element={<Opening onFinish={goToMap} />} />
+120:       <Route path="/" element={map} />
+121:       <Route path="/lesson/:placeId" element={<LessonRoute progress={progress} onSaveProgress={saveProgress} notice={storageNotice} onDismissNotice={clearStorageNotice} />} />
+122:       <Route path="*" element={map} />
+123:     </Routes>
+124:   );
+125: }
+126: 
+127: function LearningRoot() {
+128:   const [initial] = useState(loadOrCreateWorldProgress);
+129:   return initial.ok ? <LearningApp initialProgress={initial.progress} /> : <BlockedScreen error={initial.error} />;
+130: }
+131: 
+132: function Root() {
+133:   // 開発用プレビューは進捗を読んだり保存したりしない独立画面にする。
+134:   if (import.meta.env.DEV && window.location.pathname === '/character-preview') return <CharacterPreview />;
+135:   return <LearningRoot />;
+136: }
+137: 
+138: export default Root;
+
+### src/world/ItemsPanel.tsx
+1: import { AvatarArt } from './AvatarArt';
+2: import { characterStageForCompletedPhases } from './characterStages';
+3: import { ProgressReset } from './ProgressReset';
+4: import { completedPhaseCount, ownedKeepsakes, wornEquipment } from './progress';
+5: import type { WorldProgress } from './progress';
+6: import { equipmentCount, keepsakeCount } from './story';
+7: import type { Item } from './story';
+8: 
+9: interface ItemsPanelProps {
+10:   progress: WorldProgress;
+11:   onClose: () => void;
+12:   // 渡されたときだけ「最初からやり直す」を出す。保存できたら true を返す
+13:   onResetProgress?: () => boolean;
+14: }
+15: 
+16: function ItemList<T extends Item>({ list, describe }: { list: T[]; describe: (item: T) => string }) {
+17:   return (
+18:     <ul className="item-list">
+19:       {list.map((item) => (
+20:         <li key={item.id}>
+21:           <b>{item.name}</b>
+22:           <small>{describe(item)}</small>
+23:         </li>
+24:       ))}
+25:     </ul>
+26:   );
+27: }
+28: 
+29: export function ItemsPanel({ progress, onClose, onResetProgress }: ItemsPanelProps) {
+30:   const worn = wornEquipment(progress);
+31:   const keepsakes = ownedKeepsakes(progress);
+32:   const stage = characterStageForCompletedPhases(completedPhaseCount(progress));
+33: 
+34:   return (
+35:     <section className="world-dialog-card items-panel" aria-labelledby="items-title">
+36:       <div className="items-panel-head">
+37:         <h2 id="items-title">旅人と持ち物</h2>
+38:         <button className="dialog-close" onClick={onClose} aria-label="持ち物パネルを閉じる">×</button>
+39:       </div>
+40:       <div className="items-panel-body">
+41:         <div>
+42:           <AvatarArt stage={stage} className="avatar-art" />
+43:           <p className="avatar-stage-name">{stage.name}</p>
+44:           <p className="avatar-note">{stage.description}</p>
+45:         </div>
+46:         <div className="items-panel-lists">
+47:           <h3>装備 {worn.length} / {equipmentCount}</h3>
+48:           {worn.length === 0
+49:             ? <p className="empty-copy">フェーズ1を修了すると、最初の装備が届きます。</p>
+50:             : <ItemList list={worn} describe={(item) => item.equipment.appearance} />}
+51:           <h3>持ち物 {keepsakes.length} / {keepsakeCount}</h3>
+52:           {keepsakes.length === 0
+53:             ? <p className="empty-copy">フェーズを修了すると、ここにアイテムが届きます。</p>
+54:             : <ItemList list={keepsakes} describe={(item) => item.effect} />}
+55:         </div>
+56:       </div>
+57:       {onResetProgress && <ProgressReset onReset={onResetProgress} />}
+58:     </section>
+59:   );
+60: }
+
+### src/world/WorldMap.tsx
+1: import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+2: import type { CSSProperties, PointerEvent } from 'react';
+3: import { NoticeRegion } from './NoticeRegion';
+4: import type { Notice } from './NoticeRegion';
+5: import { ProgressMeter } from './ProgressMeter';
+6: import { useLocation, useNavigate } from 'react-router-dom';
+7: import { ItemsPanel } from './ItemsPanel';
+8: import { mapSizes, tallLayoutQuery } from './layout';
+9: import type { MapLayout } from './layout';
+10: import { scrollBehavior } from './motion';
+11: import { completedPhaseCount, completedPhaseCountIn, currentPhaseOf, isPhaseComplete, placeState } from './progress';
+12: import type { PlaceState, WorldProgress } from './progress';
+13: import { findPlace, phaseRangeLabel, phases, placeKindLabel, placeOfPhase, places, storyChapters } from './story';
+14: import type { Place } from './story';
+15: import { useMediaQuery } from './useMediaQuery';
+16: import { WorldArt } from './WorldArt';
+17: 
+18: interface WorldMapProps {
+19:   progress: WorldProgress;
+20:   notice: Notice | null;
+21:   onDismissNotice: () => void;
+22:   // 進捗を最初に戻す（テスト運転用）
+23:   onResetProgress?: () => boolean;
+24: }
+25: 
+26: const defaultZoom = 1;
+27: const maxZoom = 1.5;
+28: const zoomStep = 0.2;
+29: // 全体表示の範囲は第1章の地図の大きさに固定する。地図を広げても全体表示の下限は縮めず、はみ出した分はスクロールで見る
+30: const overviewMapSize = mapSizes.wide;
+31: // これより小さく表示するときは、目的地ラベルを詰めた表示にする
+32: const overviewZoomThreshold = 0.6;
+33: 
+34: const stateLabels: Record<PlaceState, string> = { done: '修了済み', current: '現在地', locked: '未解放' };
+35: const stateMarks: Record<PlaceState, string> = { done: '✓', current: '●', locked: '🔒' };
+36: 
+37: // 地図の絵があり、座標を持つ目的地
+38: type MappedPlace = Place & { position: NonNullable<Place['position']> };
+39: 
+40: const mappedPlaces = places.filter((place): place is MappedPlace => place.position !== null);
+41: 
+42: interface MapButtonProps {
+43:   place: MappedPlace;
+44:   layout: MapLayout;
+45:   state: PlaceState;
+46:   onClick: (opener: HTMLButtonElement) => void;
+47: }
+48: 
+49: function MapButton({ place, layout, state, onClick }: MapButtonProps) {
+50:   const { width, height } = mapSizes[layout];
+51:   const style: CSSProperties = { '--map-x': `${place.position.x / width * 100}%`, '--map-y': `${place.position.y / height * 100}%` };
+52:   const statusDescription = state === 'locked' ? '未解放。前の目的地を修了すると進めます。' : stateLabels[state];
+53:   return (
+54:     <button
+55:       className={`map-destination ${state}`}
+56:       style={style}
+57:       onClick={(event) => onClick(event.currentTarget)}
+58:       aria-label={`${placeKindLabel(place)} ${place.name}、${phaseRangeLabel(place)}、${statusDescription}`}
+59:     >
+60:       <span className="map-destination-detail">{phaseRangeLabel(place)}</span>
+61:       <span className="map-destination-theme"><b aria-hidden="true">{stateMarks[state]}</b> {place.name}</span>
+62:     </button>
+63:   );
+64: }
+65: 
+66: export default function WorldMap({ progress, notice, onDismissNotice, onResetProgress }: WorldMapProps) {
+67:   const navigate = useNavigate();
+68:   const location = useLocation();
+69:   const mapRef = useRef<HTMLDivElement>(null);
+70:   const placeDialogRef = useRef<HTMLDialogElement>(null);
+71:   const itemsDialogRef = useRef<HTMLDialogElement>(null);
+72:   const placeIndexRef = useRef<HTMLDetailsElement>(null);
+73:   const openerRef = useRef<HTMLElement | null>(null);
+74:   const dragStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+75:   const fitZoomRef = useRef(0);
+76:   const zoomCenterRef = useRef<{ x: number; y: number } | null>(null);
+77:   const [selected, setSelected] = useState<Place | null>(null);
+78:   const [zoom, setZoom] = useState(defaultZoom);
+79:   const [fitZoom, setFitZoom] = useState(defaultZoom);
+80:   // 持ち物パネルは閉じるたびに作り直し、やり直しの確認を途中のまま残さない。
+81:   // 開くときに作り直すと、showModal が当てたフォーカスごと消えてしまう
+82:   const [itemsPanelKey, setItemsPanelKey] = useState(0);
+83:   const isDesktop = useMediaQuery('(hover: hover) and (pointer: fine)');
+84:   const layout: MapLayout = useMediaQuery(tallLayoutQuery) ? 'tall' : 'wide';
+85:   const { width: mapWidth, height: mapHeight } = mapSizes[layout];
+86:   const completedCount = completedPhaseCount(progress);
+87:   const currentPhase = currentPhaseOf(progress);
+88:   // 全フェーズを終えたら、最後の目的地を現在地として扱う
+89:   const currentPlace = currentPhase ? placeOfPhase(currentPhase) : places[places.length - 1];
+90:   // 地図の絵がまだ無い目的地へ進んだら、地図の外に案内を出す
+91:   const unmappedCurrentPlace = currentPhase && !currentPlace.position ? currentPlace : null;
+92:   const selectedState = selected ? placeState(progress, selected) : null;
+93: 
+94:   const openPlace = (place: Place, opener?: HTMLElement) => {
+95:     openerRef.current = opener ?? null;
+96:     setSelected(place);
+97:   };
+98:   const closePlace = () => {
+99:     placeDialogRef.current?.close();
+100:     setSelected(null);
+101:     openerRef.current?.focus();
+102:   };
+103:   const openItems = (opener: HTMLElement) => {
+104:     openerRef.current = opener;
+105:     itemsDialogRef.current?.showModal();
+106:   };
+107:   const closeItems = () => {
+108:     itemsDialogRef.current?.close();
+109:     setItemsPanelKey((key) => key + 1);
+110:     openerRef.current?.focus();
+111:   };
+112: 
+113:   const centerOnCurrent = useCallback(() => {
+114:     const map = mapRef.current;
+115:     const canvas = map?.querySelector<HTMLElement>('.world-canvas');
+116:     if (!map || !canvas) return;
+117:     // 地図の絵がまだ無い目的地にいるときは、絵のある最後の目的地を中央にする
+118:     const { x, y } = currentPlace.position ?? mappedPlaces[mappedPlaces.length - 1].position;
+119:     map.scrollTo({
+120:       left: Math.max(0, x / mapWidth * canvas.clientWidth - map.clientWidth / 2),
+121:       top: Math.max(0, y / mapHeight * canvas.clientHeight - map.clientHeight / 2),
+122:       behavior: scrollBehavior(),
+123:     });
+124:   }, [currentPlace, mapWidth, mapHeight]);
+125: 
+126:   useEffect(() => {
+127:     if (selected && placeDialogRef.current && !placeDialogRef.current.open) placeDialogRef.current.showModal();
+128:   }, [selected]);
+129: 
+130:   useEffect(() => {
+131:     const state = location.state as { openPlaceId?: string } | null;
+132:     if (!state?.openPlaceId) return;
+133:     const place = findPlace(state.openPlaceId);
+134:     if (place) openPlace(place);
+135:     navigate('/', { replace: true, state: null });
+136:   }, [location.state, navigate]);
+137: 
+138:   // 開いたときと、現在地が変わったときに、現在地を画面の中央へ
+139:   useEffect(() => {
+140:     const frame = requestAnimationFrame(centerOnCurrent);
+141:     return () => cancelAnimationFrame(frame);
+142:   }, [centerOnCurrent]);
+143: 
+144:   useLayoutEffect(() => {
+145:     const map = mapRef.current;
+146:     if (!map) return;
+147:     const measureFit = () => {
+148:       const canvas = map.querySelector<HTMLElement>('.world-canvas');
+149:       if (!canvas) return;
+150:       const canvasZoom = Number(canvas.style.getPropertyValue('--map-zoom'));
+151:       const baseWidth = canvas.getBoundingClientRect().width / canvasZoom;
+152:       const baseHeight = canvas.getBoundingClientRect().height / canvasZoom;
+153:       const overviewWidth = isDesktop ? baseWidth * overviewMapSize.width / mapWidth : baseWidth;
+154:       const overviewHeight = isDesktop ? baseHeight * overviewMapSize.height / mapHeight : baseHeight;
+155:       const nextFit = Math.max(0.01, Math.floor(Math.min(
+156:         map.clientWidth / overviewWidth,
+157:         map.clientHeight / overviewHeight,
+158:         defaultZoom,
+159:       ) * 0.98 * 1000) / 1000);
+160:       const previousFit = fitZoomRef.current;
+161:       fitZoomRef.current = nextFit;
+162:       setFitZoom(nextFit);
+163:       setZoom((value) => isDesktop && previousFit === 0
+164:         ? nextFit
+165:         : value <= previousFit + 0.001 ? nextFit : Math.max(value, nextFit));
+166:     };
+167:     measureFit();
+168:     const observer = new ResizeObserver(measureFit);
+169:     observer.observe(map);
+170:     return () => observer.disconnect();
+171:   }, [isDesktop, layout, mapHeight, mapWidth]);
+172: 
+173:   useLayoutEffect(() => {
+174:     const center = zoomCenterRef.current;
+175:     const map = mapRef.current;
+176:     const canvas = map?.querySelector<HTMLElement>('.world-canvas');
+177:     if (!center || !map || !canvas) return;
+178:     zoomCenterRef.current = null;
+179:     map.scrollTo({
+180:       left: center.x * canvas.clientWidth - map.clientWidth / 2,
+181:       top: center.y * canvas.clientHeight - map.clientHeight / 2,
+182:       behavior: 'instant',
+183:     });
+184:   }, [zoom]);
+185: 
+186:   const dragStart = (event: PointerEvent<HTMLDivElement>) => {
+187:     const map = mapRef.current;
+188:     if (!map || event.pointerType === 'touch' || (event.target as HTMLElement).closest('button')) return;
+189:     dragStartRef.current = { x: event.clientX, y: event.clientY, left: map.scrollLeft, top: map.scrollTop };
+190:     event.currentTarget.setPointerCapture(event.pointerId);
+191:   };
+192:   const dragMove = (event: PointerEvent<HTMLDivElement>) => {
+193:     const map = mapRef.current;
+194:     const start = dragStartRef.current;
+195:     if (!map || !start) return;
+196:     map.scrollLeft = start.left - (event.clientX - start.x);
+197:     map.scrollTop = start.top - (event.clientY - start.y);
+198:   };
+199:   const dragEnd = () => {
+200:     dragStartRef.current = null;
+201:   };
+202: 
+203:   const changeZoom = (step: number) => {
+204:     const nextZoom = Math.min(maxZoom, Math.max(fitZoom, Number((zoom + step).toFixed(3))));
+205:     if (nextZoom === zoom) return;
+206:     const map = mapRef.current;
+207:     const canvas = map?.querySelector<HTMLElement>('.world-canvas');
+208:     if (map && canvas) {
+209:       const mapBounds = map.getBoundingClientRect();
+210:       const canvasBounds = canvas.getBoundingClientRect();
+211:       zoomCenterRef.current = {
+212:         x: (mapBounds.left + map.clientWidth / 2 - canvasBounds.left) / canvasBounds.width,
+213:         y: (mapBounds.top + map.clientHeight / 2 - canvasBounds.top) / canvasBounds.height,
+214:       };
+215:     }
+216:     setZoom(nextZoom);
+217:   };
+218:   const resetView = () => {
+219:     zoomCenterRef.current = null;
+220:     setZoom(isDesktop ? fitZoom : defaultZoom);
+221:     requestAnimationFrame(centerOnCurrent);
+222:   };
+223:   // 一覧を開いたら、現在地の行が見える位置まで送る
+224:   const revealCurrentInIndex = () => {
+225:     const index = placeIndexRef.current;
+226:     if (!index?.open) return;
+227:     index.querySelector<HTMLElement>('[data-current="true"]')?.scrollIntoView({ block: 'nearest' });
+228:   };
+229: 
+230:   const canvasStyle: CSSProperties = { '--map-zoom': zoom, '--map-width': `${mapWidth}px`, '--map-aspect': `${mapWidth} / ${mapHeight}` };
+231: 
+232:   return (
+233:     <main className="world-page">
+234:       <header className="world-header">
+235:         <div>
+236:           <p>LEARNING ADVENTURE</p>
+237:           <h1>MIND SEEKER</h1>
+238:         </div>
+239:         <div className="world-progress" role="group" aria-label={`全${phases.length}フェーズのうち${completedCount}フェーズを修了`}>
+240:           <b>{completedCount}</b>
+241:           <span>/ {phases.length} phases</span>
+242:           <ProgressMeter ratio={completedCount / phases.length} />
+243:         </div>
+244:         <button onClick={(event) => openItems(event.currentTarget)}>旅人・持ち物</button>
+245:       </header>
+246: 
+247:       <section className="world-map-shell" aria-label="学びの世界地図">
+248:         <div
+249:           className="world-map-scroll"
+250:           ref={mapRef}
+251:           onPointerDown={dragStart}
+252:           onPointerMove={dragMove}
+253:           onPointerUp={dragEnd}
+254:           onPointerCancel={dragEnd}
+255:         >
+256:           <div className={`world-canvas ${layout}${zoom < overviewZoomThreshold ? ' overview' : ''}`} style={canvasStyle}>
+257:             <WorldArt layout={layout} className="world-art" />
+258:             <div className="world-labels">
+259:               {mappedPlaces.map((place) => (
+260:                 <MapButton
+261:                   key={place.id}
+262:                   place={place}
+263:                   layout={layout}
+264:                   state={placeState(progress, place)}
+265:                   onClick={(opener) => openPlace(place, opener)}
+266:                 />
+267:               ))}
+268:             </div>
+269:           </div>
+270:         </div>
+271: 
+272:         {/* お知らせと次の目的地の案内は、重ならないよう1つの入れ物に縦に並べる */}
+273:         <NoticeRegion className="map-notices" notice={notice} onDismiss={onDismissNotice} fallbackFocusSelectors={['.place-index summary']}>
+274:           {unmappedCurrentPlace && (
+275:             <div className="next-destination">
+276:               <p>次の目的地：<b>{unmappedCurrentPlace.name}</b><span className="no-wrap">（第{unmappedCurrentPlace.chapterNumber}章・地図は準備中）</span></p>
+277:               <button className="dialog-action" onClick={() => navigate('/lesson/' + unmappedCurrentPlace.id)}>学習を始める →</button>
+278:             </div>
+279:           )}
+280:         </NoticeRegion>
+281: 
+282:         <div className="map-controls" role="group" aria-label="地図の表示操作">
+283:           <details className="place-index" ref={placeIndexRef} onToggle={revealCurrentInIndex}>
+284:             <summary>目的地一覧</summary>
+285:             <div>
+286:               {storyChapters.map((chapter) => (
+287:                 <section key={chapter.number} aria-label={`第${chapter.number}章 ${chapter.title}`}>
+288:                   <h3>第{chapter.number}章 {chapter.title}</h3>
+289:                   {chapter.places.map((place) => {
+290:                     const state = placeState(progress, place);
+291:                     return (
+292:                       <button
+293:                         key={place.id}
+294:                         className={state}
+295:                         data-current={state === 'current'}
+296:                         onClick={(event) => openPlace(place, event.currentTarget)}
+297:                       >
+298:                         <span aria-hidden="true">{stateMarks[state]}</span> {place.name}（{phaseRangeLabel(place)}・{stateLabels[state]}）
+299:                       </button>
+300:                     );
+301:                   })}
+302:                 </section>
+303:               ))}
+304:             </div>
+305:           </details>
+306:           <button onClick={() => changeZoom(zoomStep)} aria-label="地図を拡大" disabled={zoom >= maxZoom}>＋</button>
+307:           <button onClick={() => changeZoom(-zoomStep)} aria-label="地図を縮小" disabled={zoom <= fitZoom}>－</button>
+308:           <button onClick={resetView}>現在地</button>
+309:         </div>
+310:       </section>
+311: 
+312:       <dialog ref={placeDialogRef} className="world-dialog" onClose={closePlace} aria-labelledby="place-title">
+313:         {selected && (
+314:           <section className="world-dialog-card">
+315:             <button className="dialog-close" onClick={closePlace} aria-label="目的地の案内を閉じる">×</button>
+316:             <p className="card-eyebrow">CHAPTER {selected.chapterNumber}・{placeKindLabel(selected)}</p>
+317:             <h2 id="place-title">{selected.name}</h2>
+318:             <strong>{phaseRangeLabel(selected)}・修了 {completedPhaseCountIn(progress, selected)} / {selected.phases.length}</strong>
+319:             <ul className="place-phases">
+320:               {selected.phases.map((phase) => (
+321:                 <li key={phase.id}>
+322:                   {isPhaseComplete(progress, phase.id) ? '✓' : '・'} {phase.title}（{phase.subtitle}）→<span className="item-name">「{phase.item.name}」</span>
+323:                 </li>
+324:               ))}
+325:             </ul>
+326:             {selectedState === 'locked' ? (
+327:               <p>前の目的地を修了すると、ここへ進めます。</p>
+328:             ) : (
+329:               <button className="dialog-action" onClick={() => navigate('/lesson/' + selected.id)}>
+330:                 {selectedState === 'done' ? '物語を読み返す' : '学習を始める'} →
+331:               </button>
+332:             )}
+333:           </section>
+334:         )}
+335:       </dialog>
+336: 
+337:       <dialog ref={itemsDialogRef} className="world-dialog items-dialog" onClose={closeItems} aria-labelledby="items-title">
+338:         <ItemsPanel key={itemsPanelKey} progress={progress} onClose={closeItems} onResetProgress={onResetProgress} />
+339:       </dialog>
+340:     </main>
+341:   );
+342: }
+
+### src/world/world.css
+1: @import url('https://fonts.googleapis.com/css2?family=Marcellus&family=Noto+Sans+JP:wght@500;700;900&display=swap');
+2: 
+3: /* --world-header-height: ヘッダーの高さ。地図の高さと全体表示の計算に使う
+4:    --focus-ring: フォーカス枠の色。背景の側で決め、ボタンはそれを受け取る（暗い背景は明るい黄色、羊皮紙は紺） */
+5: .world-page { --world-header-height: 64px; }
+6: .world-page, .world-lesson { --focus-ring: var(--focus-ring-on-dark); }
+7: .world-dialog-card, .world-certificate, .lesson-card article, .next-destination, .notice { --focus-ring: var(--focus-ring-on-parchment); }
+8: .world-page { min-height: 100svh; background: #17243a; color: #f9edca; font-family: 'Noto Sans JP', sans-serif; }
+9: .world-page *, .world-lesson * { box-sizing: border-box; }
+10: .world-page button, .world-lesson button { font: inherit; cursor: pointer; }
+11: 
+12: .world-header { display: flex; align-items: center; gap: 14px; height: var(--world-header-height); padding: 7px clamp(12px, 3vw, 42px); border-bottom: 3px solid #d8ad58; background: linear-gradient(90deg, #242b38, #3a3032); }
+13: .world-header p { margin: 0; color: #e9b44c; font-size: 10px; letter-spacing: .16em; }
+14: /* 羊皮紙の上の、見出しの上に置く小さな文字 */
+15: .card-eyebrow { margin: 0; color: #6f5a30; font-size: 11px; letter-spacing: .14em; }
+16: .world-header h1 { margin: 0; font: 24px Marcellus, serif; letter-spacing: .08em; }
+17: .world-header > button, .map-controls button, .dialog-action, .world-lesson button, .progress-reset button { min-height: 44px; border: 1px solid #e8c87c; border-radius: 7px; padding: 9px 13px; background: #f5e6bf; color: #34281d; font-weight: 800; }
+18: .world-header > button { background: #3e4a4b; color: #f9edca; }
+19: .map-controls button:disabled, .world-lesson button:disabled { opacity: .45; cursor: not-allowed; }
+20: .world-lesson .lesson-next, .world-page .dialog-action, .world-lesson .dialog-action { background: #e7b54d; box-shadow: 0 4px 0 #8c692f; }
+21: /* ホバーの見た目はマウスのある端末だけ（タッチではタップ後も残ってしまうため） */
+22: @media (hover: hover) {
+23:   .world-header > button:hover, .map-controls button:hover:not(:disabled), .place-index summary:hover, .world-lesson button:hover:not(:disabled) { border-color: #e9b44c; box-shadow: 0 0 0 2px #e9b44c88; }
+24:   .dialog-close:hover, .notice button:hover { border-radius: 6px; background: #0000000f; }
+25:   .progress-reset button:hover { box-shadow: 0 0 0 2px #8c692f; }
+26:   .progress-reset .progress-reset-confirm:hover { box-shadow: 0 0 0 2px #fff8ec, 0 0 0 4px #8a2c24; }
+27:   /* 立体の影は残し、濃い縁を重ねる */
+28:   .world-lesson .lesson-next:hover:not(:disabled), .world-page .dialog-action:hover:not(:disabled), .world-lesson .dialog-action:hover:not(:disabled) { border-color: #8c692f; background: #f0c463; box-shadow: 0 4px 0 #8c692f, 0 0 0 2px #8c692f; }
+29:   .world-page .map-destination:hover { border-color: #e9b44c; box-shadow: 0 4px 0 #6c5536, 0 0 0 2px #e9b44c; }
+30:   .world-page .map-destination.current:hover { box-shadow: 0 4px 0 #6c5536, 0 0 0 2px #e9b44c, 0 0 14px #ffe48a; }
+31: }
+32: .world-progress { min-width: 145px; margin-left: auto; }
+33: .world-progress b { color: #e9b44c; font-size: 20px; }
+34: .world-progress span { margin-left: 4px; font-size: 11px; }
+35: .progress-meter { height: 6px; margin-top: 3px; overflow: hidden; border-radius: 8px; background: #18212b; }
+36: .progress-meter i { display: block; width: var(--progress); height: 100%; border-radius: inherit; background: #e9b44c; }
+37: 
+38: .world-map-shell { position: relative; height: calc(100svh - var(--world-header-height)); overflow: hidden; background: #17243a; }
+39: .world-map-scroll { display: flex; align-items: safe center; justify-content: safe center; width: 100%; height: 100%; overflow: auto; overscroll-behavior: none; cursor: grab; }
+40: .world-map-scroll:active { cursor: grabbing; }
+41: /* 等倍では区画を大きく見せ、縮小時は地図全体を表示する。縦向きのスマホでも同じ幅で、各区画を元の比率のまま横にたどる */
+42: .world-canvas { position: relative; flex: none; width: calc(max(var(--map-width), 289vw, (100svh - var(--world-header-height)) * 4.5) * var(--map-zoom)); min-width: 0; aspect-ratio: var(--map-aspect); background: #17243a; }
+43: .world-art { display: block; width: 100%; height: 100%; }
+44: .windmill-rotor { transform-box: fill-box; transform-origin: 53% 50.9%; animation: windmill-turn 18s linear infinite; }
+45: @keyframes windmill-turn { to { transform: rotate(360deg); } }
+46: .chimney-smoke-preview image { opacity: 0; filter: brightness(0) invert(1); transform-box: fill-box; transform-origin: 38% 100%; animation: chimney-smoke-drift 6s ease-out infinite; }
+47: .chimney-smoke-preview image:nth-child(2) { animation-delay: -2s; }
+48: .chimney-smoke-preview image:nth-child(3) { animation-delay: -4s; }
+49: @keyframes chimney-smoke-drift {
+50:   0% { opacity: 0; transform: translate(0, 5px) scale(.72); }
+51:   20% { opacity: 1; }
+52:   65% { opacity: .85; }
+53:   100% { opacity: 0; transform: translate(1px, -18px) scale(1.06); }
+54: }
+55: .world-labels { position: absolute; inset: 0; pointer-events: none; }
+56: .world-page .map-destination { position: absolute; left: var(--map-x); top: var(--map-y); width: 176px; min-height: 44px; transform: translate(-50%, 85%); border: 2px solid #e5c77c; border-radius: 8px; padding: 5px 8px; background: #f5e6bf; color: #30251d; box-shadow: 0 4px 0 #6c5536; font-size: 13px; font-weight: 900; line-height: 1.3; pointer-events: auto; }
+57: .map-destination::before { position: absolute; inset: -95px 0 -16px; content: ''; }
+58: .map-destination span { display: block; color: #6f5a30; font-size: 12px; letter-spacing: .08em; }
+59: .map-destination span b { display: inline-block; min-width: 15px; color: #564522; font-size: 12px; letter-spacing: 0; }
+60: .map-destination .map-destination-theme { color: inherit; font-size: inherit; letter-spacing: 0; }
+61: /* 全体表示では、フェーズの行だけを隠して「記号＋名前」を残す */
+62: .world-canvas.overview .map-destination { width: auto; max-width: 160px; min-height: 44px; transform: translate(-50%, -50%); padding: 6px 10px; white-space: nowrap; }
+63: .world-canvas.overview .map-destination::before { inset: -5px; }
+64: .world-canvas.overview .map-destination-detail { display: none; }
+65: .map-destination.current { border-color: #f6d26c; background: #fff1bd; box-shadow: 0 4px 0 #6c5536, 0 0 14px #ffe48a; }
+66: .map-destination.done { border-color: #8fbc83; }
+67: .map-destination.locked { border-color: #706b5d; background: #bab39e; color: #3f3b34; }
+68: .map-destination.locked span { color: #4a4234; }
+69: /* 地図ラベルのフォーカス枠は、地図の色に左右されないよう紺の線を黄色の帯で縁取る。現在地は光彩も残す */
+70: .world-page .world-canvas .map-destination:focus-visible { outline: 3px solid var(--focus-ring-on-parchment); outline-offset: 2px; box-shadow: 0 4px 0 #6c5536, 0 0 0 7px var(--focus-ring-on-dark); }
+71: .world-page .world-canvas .map-destination.current:focus-visible { box-shadow: 0 4px 0 #6c5536, 0 0 0 7px var(--focus-ring-on-dark), 0 0 14px #ffe48a; }
+72: /* 目的地一覧のパネルがお知らせより手前に来るよう、操作ボタンを上に重ねる */
+73: .map-controls { position: absolute; z-index: 6; right: 16px; bottom: 16px; display: flex; gap: 6px; }
+74: .map-controls button { min-width: 44px; padding: 6px 10px; font-size: 12px; }
+75: /* 一覧のパネルは操作ボタン全体の右端にそろえる。ボタンの位置に合わせると狭い画面で左へはみ出す */
+76: .place-index { position: static; }
+77: /* summary は button 共通の規則に当たらないので、押せる高さを自分で持つ */
+78: .place-index summary { display: grid; min-height: 44px; align-items: center; border: 1px solid #e8c87c; border-radius: 7px; padding: 6px 10px; background: #f5e6bf; color: #34281d; font-size: 12px; font-weight: 800; cursor: pointer; }
+79: .place-index > div { position: absolute; right: 0; bottom: calc(100% + 8px); display: grid; width: min(340px, 88vw); max-height: min(65svh, 540px); gap: 4px; overflow: auto; border: 2px solid #d8ad58; border-radius: 8px; padding: 7px; background: #263835; box-shadow: 0 8px 24px #0008; }
+80: .place-index section { display: grid; gap: 4px; }
+81: .place-index section button { width: 100%; text-align: left; }
+82: .place-index section button.current { border-color: #e9b44c; background: #fff1bd; box-shadow: 0 0 0 2px #e9b44c88; }
+83: .place-index section button.locked { background: #bab39e; color: #3f3b34; }
+84: .place-index h3 { margin: 6px 2px 2px; color: #e9b44c; font-size: 12px; letter-spacing: .08em; }
+85: /* お知らせの領域（NoticeRegion）。status と alert の2つを常に置き、空のときは見えなくする */
+86: .notice-region { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+87: .notice { display: flex; align-items: center; gap: 6px; width: max-content; max-width: 100%; padding: 4px 4px 4px 14px; border: 2px solid #d8ad58; border-radius: 8px; background: #f5e6bf; color: #34281d; line-height: 1.6; box-shadow: 0 8px 18px #0008; }
+88: .notice.error { border-color: #df8c63; background: #fff3db; color: #5b3022; }
+89: .notice.empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); padding: 0; border: 0; box-shadow: none; }
+90: /* text-wrap: pretty と組み合わせると「もう｜一度」のように語の途中で切れるため、文節での改行だけにする */
+91: .notice span { word-break: auto-phrase; }
+92: .notice button, .dialog-close { min-width: 44px; min-height: 44px; border: 0; background: none; font-size: 21px; cursor: pointer; }
+93: .notice button { flex: none; }
+94: /* 地図では、お知らせと次の目的地の案内を左上に縦に並べる */
+95: .map-notices { position: absolute; z-index: 5; top: 16px; left: 16px; max-width: min(520px, calc(100% - 32px)); pointer-events: none; }
+96: .map-notices > * { pointer-events: auto; }
+97: /* 教材では、修了ボタンを押した位置から見えるよう画面の下に留める */
+98: .lesson-notices .notice:not(.empty) { margin-top: 15px; }
+99: .lesson-notices { position: sticky; z-index: 3; bottom: 16px; align-items: center; max-width: 850px; margin: 0 auto; }
+100: .next-destination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: 100%; border: 2px solid #d8ad58; border-radius: 8px; padding: 10px 14px; background: #f5e6bf; color: #30251d; box-shadow: 0 8px 18px #0008; }
+101: .no-wrap { white-space: nowrap; }
+102: .next-destination p { margin: 0; font-size: 14px; line-height: 1.6; word-break: auto-phrase; text-wrap: pretty; }
+103: .world-page .next-destination .dialog-action { margin: 0; }
+104: 
+105: .world-dialog { max-width: min(480px, 92vw); max-height: 92svh; overflow-y: auto; padding: 0; border: 0; border-radius: 12px; background: transparent; }
+106: .world-dialog::backdrop, .world-certificate::backdrop { background: #0009; }
+107: .world-dialog-card { position: relative; padding: 28px; border: 4px solid #d8ad58; border-radius: 12px; background: #f5e6bf; color: #30251d; }
+108: .world-dialog-card h2 { margin: 5px 0; font: 30px Marcellus, 'Noto Sans JP', serif; }
+109: .world-dialog-card strong, .world-dialog-card > p { line-height: 1.8; }
+110: .dialog-close { position: absolute; top: 7px; right: 10px; }
+111: .dialog-action { margin-top: 12px; }
+112: /* 金の枠は dialog 自身に付け、中身をスクロールしても上辺が流れて消えないようにする */
+113: .items-dialog { width: min(900px, 94vw); max-width: none; border: 4px solid #d8ad58; background: #f5e6bf; }
+114: .world-dialog-card.items-panel { padding: 0 0 18px; border: 0; border-radius: 0; }
+115: /* 一覧が長くなっても閉じるボタンが見えるよう、見出しの帯を上に留める */
+116: .items-panel-head { position: sticky; z-index: 1; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #d6bd7f; padding: 10px 14px 10px 22px; background: #f5e6bf; }
+117: .items-panel-head h2 { margin: 0; }
+118: .items-panel-head .dialog-close { position: static; }
+119: .items-panel-body { display: grid; grid-template-columns: minmax(250px, 300px) 1fr; gap: 20px; padding: 16px 22px 0; }
+120: .avatar-art { display: block; width: 100%; max-width: 300px; margin: 0 auto; }
+121: .avatar-art img { display: block; width: 100%; height: auto; }
+122: .avatar-stage-name { margin: 8px 0 0; color: #34281d; font-weight: 900; text-align: center; }
+123: .avatar-note { color: #5b4423; font-size: 12px; line-height: 1.6; text-align: center; }
+124: .items-panel-lists h3 { margin: 4px 0 6px; color: #5b4423; font-size: 15px; }
+125: .item-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 16px; margin: 0 0 14px; padding: 0; list-style: none; }
+126: .item-list li { border-top: 1px solid #d6bd7f; padding: 8px 0; }
+127: .item-list b { display: block; }
+128: .item-list small { color: #5b4423; line-height: 1.5; text-wrap: pretty; }
+129: .empty-copy { color: #5b4423; }
+130: /* テスト運転用のやり直し。学習の操作と見分けられるよう、点線の枠で分ける */
+131: .progress-reset { margin: 18px 22px 0; border: 1px dashed #b08f4f; border-radius: 8px; padding: 10px 14px 12px; }
+132: .progress-reset h3 { margin: 0 0 6px; color: #6f5a30; font-size: 12px; letter-spacing: .1em; }
+133: .progress-reset p { margin: 0 0 8px; color: #5b4423; line-height: 1.6; }
+134: .progress-reset button { border-color: #8c692f; background: #fbf3dc; }
+135: .progress-reset .progress-reset-confirm { border-color: #8a2c24; background: #8a2c24; color: #fff8ec; }
+136: .progress-reset-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+137: .place-phases { margin: 10px 0 0; padding: 0; list-style: none; line-height: 1.7; }
+138: .item-name { display: inline-block; }
+139: 
+140: .world-lesson { min-height: 100svh; padding: clamp(18px, 4vw, 54px); background: radial-gradient(circle at 50% 0, #405675, #182637 70%); color: #f7e9c7; font-family: 'Noto Sans JP', sans-serif; }
+141: .world-lesson > header, .lesson-card, .world-lesson > footer { max-width: 850px; margin-right: auto; margin-left: auto; }
+142: .world-lesson header > button { display: block; margin-bottom: 14px; }
+143: .world-lesson header p { margin: 0; color: #f3cf7f; font-size: 12px; letter-spacing: .18em; }
+144: .world-lesson h1 { margin: 10px 0 0; font: clamp(31px, 5vw, 52px) Marcellus, 'Noto Sans JP', serif; }
+145: .world-lesson header > span { color: #d5cfb8; }
+146: .lesson-meter { height: 9px; margin: 22px 0 20px; }
+147: .lesson-card { display: grid; gap: 15px; }
+148: .lesson-card article { scroll-margin-top: 24px; padding: 19px 22px; border-left: 7px solid #9a8765; border-radius: 8px; background: #f5e6bf; color: #30251d; }
+149: .lesson-card article.current { border-left-color: #e9b44c; box-shadow: 0 0 0 2px #e9b44c88; }
+150: .lesson-card article.upcoming { background: #e4d8b6; color: #4a4234; }
+151: .phase-locked { margin: 8px 0 0; color: #4a4234; }
+152: .phase-complete { margin-top: 18px; text-align: center; }
+153: .lesson-card article p { line-height: 1.9; font-size: 15px; }
+154: .lesson-card h2 { margin: 3px 0; }
+155: .lesson-card strong { font-size: 14px; }
+156: .lesson-card em { color: #2c6a42; font-weight: 900; }
+157: .lesson-card h3 { margin: 16px 0 0; color: #5b4423; font-size: 15px; }
+158: .phase-pending { color: #5b4423; }
+159: .phase-questions, .phase-training { margin-top: 16px; border-radius: 6px; padding: 4px 14px; background: #fffaea; }
+160: .phase-questions ul { margin: 8px 0; padding-left: 1.2em; line-height: 1.9; }
+161: .phase-training p { margin: 6px 0; color: #5b4423; }
+162: .message-screen > button { margin-top: 8px; }
+163: .world-lesson footer { padding: 23px; text-align: center; }
+164: .world-certificate { width: min(560px, 90vw); padding: 34px; border: 4px solid #d8ad58; border-radius: 10px; background: #f5e6bf; color: #30251d; text-align: center; }
+165: .world-certificate h2 { font-family: Marcellus, 'Noto Sans JP', serif; font-size: 28px; text-wrap: balance; }
+166: .world-certificate p { word-break: auto-phrase; text-wrap: pretty; }
+167: .item-keyword { color: #5b4423; font-style: italic; }
+168: .item-equipment { font-weight: 800; }
+169: 
+170: /* 人物画像そのものには矩形の光を重ねず、楕円形のオーラだけを広げる。 */
+171: .character-promotion { position: relative; display: grid; place-items: center; width: min(100%, 270px); min-height: 330px; margin: 14px auto; isolation: isolate; }
+172: .character-promotion img { grid-area: 1 / 1; display: block; width: 100%; max-height: 330px; object-fit: contain; }
+173: .character-promotion-static img { position: relative; z-index: 1; }
+174: .character-promotion-active { animation: character-promotion-complete 2s linear both; }
+175: .character-promotion-active img { position: relative; z-index: 2; }
+176: .character-promotion-before { animation: character-promotion-before 2s linear both, character-promotion-image-glow 2s ease-in-out both; }
+177: .character-promotion-after { animation: character-promotion-after 2s linear both, character-promotion-image-glow 2s ease-in-out both; }
+178: .character-promotion-aura { grid-area: 1 / 1; z-index: 3; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(ellipse closest-side, #ffffff 0%, #d9f5ffdb 33%, #9bdbff66 60%, #9bdbff00 100%); opacity: 0; pointer-events: none; transform: scale(.35); animation: character-promotion-aura 2s ease-in-out both; }
+179: .character-promotion-label { position: absolute; z-index: 4; bottom: 6px; margin: 0; padding: 4px 8px; border-radius: 4px; background: #30251dc9; color: #fff7de; font-size: 12px; font-weight: 900; opacity: 0; animation: character-promotion-label 2s linear both; }
+180: .character-promotion-error { margin: 12px 0; color: #8a2c24; font-weight: 700; }
+181: @keyframes character-promotion-complete { 0%, 100% { opacity: 1; } }
+182: @keyframes character-promotion-before { 0%, 54% { opacity: 1; } 56%, 100% { opacity: 0; } }
+183: @keyframes character-promotion-after { 0%, 55% { opacity: 0; } 56%, 100% { opacity: 1; } }
+184: @keyframes character-promotion-image-glow { 0%, 42%, 64%, 100% { filter: none; } 48%, 58% { filter: brightness(1.65) saturate(.8) drop-shadow(0 0 20px #d8f6ff); } }
+185: @keyframes character-promotion-aura { 0%, 16% { opacity: 0; transform: scale(.35); } 48%, 58% { opacity: .94; transform: scale(1.35); } 100% { opacity: 0; transform: scale(1.75); } }
+186: @keyframes character-promotion-label { 0%, 54% { opacity: 0; } 62%, 100% { opacity: 1; } }
+187: 
+188: .character-promotion-preview-0, .character-promotion-preview-0 > *, .character-promotion-preview-500, .character-promotion-preview-500 > *, .character-promotion-preview-1000, .character-promotion-preview-1000 > *, .character-promotion-preview-1500, .character-promotion-preview-1500 > *, .character-promotion-preview-2000, .character-promotion-preview-2000 > * { animation-play-state: paused; }
+189: .character-promotion-preview-0, .character-promotion-preview-0 > * { animation-delay: 0ms; }
+190: .character-promotion-preview-500, .character-promotion-preview-500 > * { animation-delay: -500ms; }
+191: .character-promotion-preview-1000, .character-promotion-preview-1000 > * { animation-delay: -1000ms; }
+192: .character-promotion-preview-1500, .character-promotion-preview-1500 > * { animation-delay: -1500ms; }
+193: .character-promotion-preview-2000, .character-promotion-preview-2000 > * { animation-delay: -2000ms; }
+194: 
+195: .character-preview { box-sizing: border-box; min-height: 100svh; padding: clamp(20px, 5vw, 60px); background: radial-gradient(circle at 50% 0, #405675, #182637 70%); color: #f7e9c7; font-family: 'Noto Sans JP', sans-serif; text-align: center; }
+196: .character-preview > header, .character-preview > section { box-sizing: border-box; width: min(560px, 100%); margin: 0 auto; }
+197: .character-preview h1 { margin: 4px 0 18px; font: clamp(30px, 5vw, 48px) Marcellus, 'Noto Sans JP', serif; }
+198: .character-preview header > p { margin: 0; color: #f3cf7f; font-size: 12px; letter-spacing: .18em; }
+199: .character-preview label { display: block; margin-bottom: 6px; font-weight: 900; }
+200: .character-preview .character-preview-time-control { margin-top: 13px; }
+201: .character-preview select, .character-preview button { min-height: 44px; border: 1px solid #e8c87c; border-radius: 7px; padding: 9px 13px; font: inherit; }
+202: .character-preview select { max-width: 100%; background: #f5e6bf; color: #34281d; }
+203: .character-preview button { margin-left: 8px; background: #e7b54d; color: #34281d; font-weight: 800; cursor: pointer; }
+204: .character-preview button:disabled { opacity: .45; cursor: not-allowed; }
+205: .character-preview > section { margin-top: 22px; border: 3px solid #d8ad58; border-radius: 10px; padding: 14px; background: #f5e6bf; color: #30251d; }
+206: .character-preview > section .avatar-art { max-width: 270px; }
+207: .character-preview h2 { margin: 5px 0; }
+208: .character-preview > section > p { margin: 0; color: #5b4423; }
+209: 
+210: @media (max-width: 600px) and (orientation: portrait) {
+211:   .world-page { --world-header-height: 56px; }
+212:   .world-header { gap: 7px; padding: 5px 9px; }
+213:   .world-header p { display: none; }
+214:   .world-header h1 { font-size: 17px; }
+215:   .world-header > button { padding: 6px 8px; font-size: 12px; }
+216:   .world-progress { min-width: 76px; }
+217:   .world-map-scroll { cursor: auto; }
+218:   .items-panel-body { grid-template-columns: 1fr; }
+219:   .avatar-art { max-width: 220px; }
+220:   .world-page .map-destination { width: min(164px, 44vw); min-height: 50px; font-size: 12px; }
+221:   .map-controls { right: 8px; bottom: 8px; }
+222:   .world-lesson { padding: 18px 13px; }
+223:   .lesson-card article { padding: 15px; }
+224:   .lesson-card article p { font-size: 14px; }
+225:   .world-certificate { padding: 24px 18px; }
+226:   .world-certificate h2 { font-size: clamp(20px, 6vw, 28px); }
+227:   .character-promotion { width: min(100%, 220px); min-height: 268px; }
+228:   .character-promotion img { max-height: 268px; }
+229:   .character-preview button { display: block; margin: 9px auto 0; }
+230: }
+231: 
+232: @media (orientation: landscape) and (max-height: 500px) {
+233:   /* 横向きスマホは縮めず、地図の中だけをスクロールして目的地の間隔を保つ。 */
+234:   .world-canvas.wide { width: calc(max(2350px, 289vw) * var(--map-zoom)); }
+235:   .world-dialog { max-height: 96svh; }
+236:   .world-dialog-card { padding: 16px; }
+237:   .items-panel-body { grid-template-columns: 180px 1fr; }
+238:   .avatar-art { max-width: 180px; }
+239:   /* 地図の高さが低いので、操作ボタンは右上、次の目的地の案内は左下へ寄せて、目的地のラベルと重ねない */
+240:   .map-controls { top: 8px; right: 8px; bottom: auto; }
+241:   .place-index > div { top: calc(100% + 8px); bottom: auto; max-height: calc(100svh - 140px); }
+242:   .map-notices { top: auto; bottom: 8px; left: 8px; flex-direction: column-reverse; max-width: calc(100% - 278px); }
+243:   .next-destination { padding: 6px 10px; }
+244:   .next-destination p, .map-notices .notice { font-size: 12px; }
+245:   .world-dialog-card.items-panel { padding: 0 0 12px; }
+246:   .items-panel-head { padding: 4px 8px 4px 16px; }
+247:   .items-panel-head h2 { font-size: 22px; }
+248:   .items-panel-body { padding: 12px 16px 0; }
+249:   .progress-reset { margin: 12px 16px 0; }
+250:   .world-certificate { padding: 14px 16px; }
+251:   .world-certificate h2 { margin: 4px 0; font-size: 20px; }
+252:   .world-certificate p { margin: 6px 0; line-height: 1.5; }
+253:   .world-certificate .dialog-action { margin-top: 4px; }
+254:   .character-promotion { width: 150px; min-height: 180px; margin: 5px auto; }
+255:   .character-promotion img { max-height: 180px; }
+256:   .character-promotion-label { display: none; }
+257: }
+258: 
+259: @media (prefers-reduced-motion: reduce) {
+260:   * { scroll-behavior: auto !important; animation: none !important; }
+261:   .chimney-smoke-preview image { opacity: .72; }
+262:   .chimney-smoke-preview image + image { display: none; }
+263:   .character-promotion-active, .character-promotion-before, .character-promotion-after, .character-promotion-aura, .character-promotion-label { animation: none; }
+264:   .character-promotion-before, .character-promotion-aura, .character-promotion-label { display: none; }
+265:   .character-promotion-after { opacity: 1; }
+266: }

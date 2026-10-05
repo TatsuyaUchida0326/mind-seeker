@@ -24,12 +24,13 @@ interface WorldMapProps {
 }
 
 const defaultZoom = 1;
-const maxZoom = 1.5;
-const zoomStep = 0.2;
 // 全体表示の範囲は第1章の地図の大きさに固定する。地図を広げても全体表示の下限は縮めず、はみ出した分はスクロールで見る
 const overviewMapSize = mapSizes.wide;
 // これより小さく表示するときは、目的地ラベルを詰めた表示にする
 const overviewZoomThreshold = 0.6;
+// 以前の最小表示から拡大を2回押したときと同じ倍率
+const mobileZoomAboveOverview = 0.4;
+const mobileLandscapeQuery = '(orientation: landscape) and (max-height: 500px)';
 
 const stateLabels: Record<PlaceState, string> = { done: '修了済み', current: '現在地', locked: '未解放' };
 const stateMarks: Record<PlaceState, string> = { done: '✓', current: '●', locked: '🔒' };
@@ -72,16 +73,16 @@ export default function WorldMap({ progress, notice, onDismissNotice, onResetPro
   const placeIndexRef = useRef<HTMLDetailsElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
-  const fitZoomRef = useRef(0);
-  const zoomCenterRef = useRef<{ x: number; y: number } | null>(null);
   const [selected, setSelected] = useState<Place | null>(null);
   const [zoom, setZoom] = useState(defaultZoom);
-  const [fitZoom, setFitZoom] = useState(defaultZoom);
   // 持ち物パネルは閉じるたびに作り直し、やり直しの確認を途中のまま残さない。
   // 開くときに作り直すと、showModal が当てたフォーカスごと消えてしまう
   const [itemsPanelKey, setItemsPanelKey] = useState(0);
   const isDesktop = useMediaQuery('(hover: hover) and (pointer: fine)');
-  const layout: MapLayout = useMediaQuery(tallLayoutQuery) ? 'tall' : 'wide';
+  const isMobilePortrait = useMediaQuery(tallLayoutQuery);
+  const isMobileLandscape = useMediaQuery(mobileLandscapeQuery);
+  const isMobile = isMobilePortrait || isMobileLandscape;
+  const layout: MapLayout = isMobilePortrait ? 'tall' : 'wide';
   const { width: mapWidth, height: mapHeight } = mapSizes[layout];
   const completedCount = completedPhaseCount(progress);
   const currentPhase = currentPhaseOf(progress);
@@ -139,7 +140,7 @@ export default function WorldMap({ progress, notice, onDismissNotice, onResetPro
   useEffect(() => {
     const frame = requestAnimationFrame(centerOnCurrent);
     return () => cancelAnimationFrame(frame);
-  }, [centerOnCurrent]);
+  }, [centerOnCurrent, isMobileLandscape, layout, zoom]);
 
   useLayoutEffect(() => {
     const map = mapRef.current;
@@ -157,31 +158,17 @@ export default function WorldMap({ progress, notice, onDismissNotice, onResetPro
         map.clientHeight / overviewHeight,
         defaultZoom,
       ) * 0.98 * 1000) / 1000);
-      const previousFit = fitZoomRef.current;
-      fitZoomRef.current = nextFit;
-      setFitZoom(nextFit);
-      setZoom((value) => isDesktop && previousFit === 0
-        ? nextFit
-        : value <= previousFit + 0.001 ? nextFit : Math.max(value, nextFit));
+      const mobileZoom = Math.min(
+        defaultZoom,
+        Math.max(nextFit + mobileZoomAboveOverview, map.clientHeight / baseHeight),
+      );
+      setZoom(isMobile ? mobileZoom : nextFit);
     };
     measureFit();
     const observer = new ResizeObserver(measureFit);
     observer.observe(map);
     return () => observer.disconnect();
-  }, [isDesktop, layout, mapHeight, mapWidth]);
-
-  useLayoutEffect(() => {
-    const center = zoomCenterRef.current;
-    const map = mapRef.current;
-    const canvas = map?.querySelector<HTMLElement>('.world-canvas');
-    if (!center || !map || !canvas) return;
-    zoomCenterRef.current = null;
-    map.scrollTo({
-      left: center.x * canvas.clientWidth - map.clientWidth / 2,
-      top: center.y * canvas.clientHeight - map.clientHeight / 2,
-      behavior: 'instant',
-    });
-  }, [zoom]);
+  }, [isDesktop, isMobile, layout, mapHeight, mapWidth]);
 
   const dragStart = (event: PointerEvent<HTMLDivElement>) => {
     const map = mapRef.current;
@@ -200,26 +187,6 @@ export default function WorldMap({ progress, notice, onDismissNotice, onResetPro
     dragStartRef.current = null;
   };
 
-  const changeZoom = (step: number) => {
-    const nextZoom = Math.min(maxZoom, Math.max(fitZoom, Number((zoom + step).toFixed(3))));
-    if (nextZoom === zoom) return;
-    const map = mapRef.current;
-    const canvas = map?.querySelector<HTMLElement>('.world-canvas');
-    if (map && canvas) {
-      const mapBounds = map.getBoundingClientRect();
-      const canvasBounds = canvas.getBoundingClientRect();
-      zoomCenterRef.current = {
-        x: (mapBounds.left + map.clientWidth / 2 - canvasBounds.left) / canvasBounds.width,
-        y: (mapBounds.top + map.clientHeight / 2 - canvasBounds.top) / canvasBounds.height,
-      };
-    }
-    setZoom(nextZoom);
-  };
-  const resetView = () => {
-    zoomCenterRef.current = null;
-    setZoom(isDesktop ? fitZoom : defaultZoom);
-    requestAnimationFrame(centerOnCurrent);
-  };
   // 一覧を開いたら、現在地の行が見える位置まで送る
   const revealCurrentInIndex = () => {
     const index = placeIndexRef.current;
@@ -303,9 +270,7 @@ export default function WorldMap({ progress, notice, onDismissNotice, onResetPro
               ))}
             </div>
           </details>
-          <button onClick={() => changeZoom(zoomStep)} aria-label="地図を拡大" disabled={zoom >= maxZoom}>＋</button>
-          <button onClick={() => changeZoom(-zoomStep)} aria-label="地図を縮小" disabled={zoom <= fitZoom}>－</button>
-          <button onClick={resetView}>現在地</button>
+          <button onClick={centerOnCurrent}>現在地</button>
         </div>
       </section>
 

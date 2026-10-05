@@ -1,0 +1,86 @@
+[
+  {
+    "art": {
+      "height": 600.28125,
+      "width": 1410.234375,
+      "x": 14.8828125,
+      "y": 181.859375
+    },
+    "progress": "1/ 30 phases",
+    "shell": {
+      "height": 836,
+      "width": 1440,
+      "x": 0,
+      "y": 64
+    },
+    "viewport": [
+      1440,
+      900
+    ],
+    "zoom": "0.312",
+    "zoomButtons": 0
+  },
+  {
+    "art": {
+      "height": 800.6875,
+      "width": 1881.0390625,
+      "x": 19.4765625,
+      "y": 171.65625
+    },
+    "progress": "1/ 30 phases",
+    "shell": {
+      "height": 1016,
+      "width": 1920,
+      "x": 0,
+      "y": 64
+    },
+    "viewport": [
+      1920,
+      1080
+    ],
+    "zoom": "0.339",
+    "zoomButtons": 0
+  },
+  {
+    "art": {
+      "height": 155.8359375,
+      "width": 366.1171875,
+      "x": 4.4375,
+      "y": 356.078125
+    },
+    "progress": "1/ 30 phases",
+    "shell": {
+      "height": 756,
+      "width": 375,
+      "x": 0,
+      "y": 56
+    },
+    "viewport": [
+      375,
+      812
+    ],
+    "zoom": "0.081",
+    "zoomButtons": 0
+  },
+  {
+    "art": {
+      "height": 304.0859375,
+      "width": 714.3984375,
+      "x": 48.796875,
+      "y": 67.453125
+    },
+    "progress": "1/ 30 phases",
+    "shell": {
+      "height": 311,
+      "width": 812,
+      "x": 0,
+      "y": 64
+    },
+    "viewport": [
+      812,
+      375
+    ],
+    "zoom": "0.304",
+    "zoomButtons": 0
+  }
+]

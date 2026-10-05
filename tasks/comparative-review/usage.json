@@ -1,0 +1,53 @@
+{
+  "claude": {
+    "usage": {
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 0,
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "",
+      "iterations": [],
+      "speed": "standard"
+    },
+    "reported_cost_usd": 0,
+    "actual_model": null
+  },
+  "codex": {
+    "usage": {
+      "input_tokens": 37293,
+      "cached_input_tokens": 7168,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 2460,
+      "reasoning_output_tokens": 1552
+    },
+    "actual_model": null,
+    "cost_usd": null
+  },
+  "note": "CLI報告値。定額枠の増減は未取得。指定モデルと実モデルの明示確認は区別する。",
+  "claude_desktop": {
+    "displayed_model": "Opus 5.5",
+    "effort": "high",
+    "mode": "plan",
+    "context_display_before": "74.7k",
+    "context_display_after": "105.3k / 1M (11%)",
+    "weekly_all_models_before": "4%",
+    "weekly_all_models_after": "4%",
+    "tokens": null,
+    "cost_usd": null,
+    "duration_seconds": null,
+    "completed_within_10_minutes": true,
+    "session_url": "https://claude.ai/epitaxy/local_bf8d39a8-9cf0-4763-b466-7b82de370d40"
+  }
+}

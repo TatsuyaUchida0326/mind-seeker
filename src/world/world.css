@@ -134,6 +134,8 @@
 .progress-reset button { border-color: #8c692f; background: #fbf3dc; }
 .progress-reset .progress-reset-confirm { border-color: #8a2c24; background: #8a2c24; color: #fff8ec; }
 .progress-reset-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 開始ボタンの右端までを安全な操作で占め、同位置の再クリックによる確定を避ける。 */
+.progress-reset-actions button:first-child { min-width: 156px; }
 .place-phases { margin: 10px 0 0; padding: 0; list-style: none; line-height: 1.7; }
 .item-name { display: inline-block; }
 
@@ -227,6 +229,8 @@
   .character-promotion { width: min(100%, 220px); min-height: 268px; }
   .character-promotion img { max-height: 268px; }
   .character-preview button { display: block; margin: 9px auto 0; }
+  /* 確定ボタンを上段に置き、開始ボタンがあった下段と重ねない。 */
+  .progress-reset-actions .progress-reset-confirm { order: -1; }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {

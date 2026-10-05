@@ -7,3 +7,6 @@
 | 物語・30アイテム・地図構成の設計と実装 | 2026-10-02 | `story/handoff.md` |
 | 素材フォルダ整理と読込導線 | 2026-10-02 | `assets/handoff.md` |
 | テスト運転用「最初からやり直す」ボタン（公開済み） | 2026-10-02 | `progress-reset/handoff.md` |
+| 既存リセット機能のClaude・Codex比較レビュー（Claude認証待ち） | 2026-10-05 | `comparative-review/handoff.md` |
+
+- 2026-10-05: マップ遠目固定・画像素材 — `tasks/map-overview/handoff.md`

@@ -1,0 +1,118 @@
+[
+  {
+    "art": {
+      "height": 600.28125,
+      "width": 1410.234375,
+      "x": 14.8828125,
+      "y": 181.859375
+    },
+    "button": [
+      106.984375,
+      44
+    ],
+    "progress": "1/ 30 phases",
+    "scroll": [
+      0,
+      0,
+      1440,
+      836
+    ],
+    "shell": {
+      "height": 836,
+      "width": 1440
+    },
+    "viewport": [
+      1440,
+      900
+    ],
+    "zoom": "0.312",
+    "zoomButtons": 0
+  },
+  {
+    "art": {
+      "height": 800.6875,
+      "width": 1881.0390625,
+      "x": 19.4765625,
+      "y": 171.65625
+    },
+    "button": [
+      106.984375,
+      44
+    ],
+    "progress": "1/ 30 phases",
+    "scroll": [
+      0,
+      0,
+      1920,
+      1016
+    ],
+    "shell": {
+      "height": 1016,
+      "width": 1920
+    },
+    "viewport": [
+      1920,
+      1080
+    ],
+    "zoom": "0.339",
+    "zoomButtons": 0
+  },
+  {
+    "art": {
+      "height": 1924,
+      "width": 4520,
+      "x": -297.5,
+      "y": -46
+    },
+    "button": [
+      164,
+      50
+    ],
+    "progress": "1/ 30 phases",
+    "scroll": [
+      297.5,
+      102,
+      4520,
+      1924
+    ],
+    "shell": {
+      "height": 756,
+      "width": 375
+    },
+    "viewport": [
+      375,
+      812
+    ],
+    "zoom": "1",
+    "zoomButtons": 0
+  },
+  {
+    "art": {
+      "height": 1000.3046875,
+      "width": 2350,
+      "x": 0,
+      "y": -30
+    },
+    "button": [
+      176,
+      46.4921875
+    ],
+    "progress": "1/ 30 phases",
+    "scroll": [
+      0,
+      94,
+      2350,
+      1000
+    ],
+    "shell": {
+      "height": 311,
+      "width": 812
+    },
+    "viewport": [
+      812,
+      375
+    ],
+    "zoom": "1",
+    "zoomButtons": 0
+  }
+]

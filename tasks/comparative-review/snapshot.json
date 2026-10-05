@@ -1,0 +1,11 @@
+{
+  "head": "7e9461792471a640fd6aa736df945bce9af53a64",
+  "sha256": {
+    "src/world/ProgressReset.tsx": "de39febc04ca8a2833a554d856bd71d2affd5af86b48151c0d84f3f1a5e2b670",
+    "src/world/progress.ts": "f9f32346f74731da02c3ff81a0d758d1f297454c09cfcaf5fa0769f61e81c456",
+    "src/Root.tsx": "ebbffe8d628746616e890aaa9ef0aad79290c1ea057274e50db8024b93f7b2f9",
+    "src/world/ItemsPanel.tsx": "ba8df77d22b3e12367f93276bc58a44a5824da0047e2fe232a97d6e47c5a2195",
+    "src/world/WorldMap.tsx": "bc98734f6f999edec0efa070849259a7619c21edc17be567602a6287820b3e6c",
+    "src/world/world.css": "ff484e3219811cdb5e0e15444c61675422ead0470f8c3aa8815bd2d4271f4670"
+  }
+}
